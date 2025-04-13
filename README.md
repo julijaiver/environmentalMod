@@ -32,8 +32,8 @@ This is a cloud-connected, ultra-low-power embedded system designed to collect e
                          ┌────────────┐        ┌────────────────────┐
 TEROS 12 ◀── SDI-12 ───▶│  nRF52840  │ ────▶ │    A7670G Modem    │
                          │  (Zephyr)  │        └────────┬───────────┘
-                         └─────┬──────┘                 ▼
-                         JWT, AT+HTTP           Google Cloud Pub/Sub
+                         └────────────┘                 ▼
+                                               Google Cloud Pub/Sub
 ```
 
 ## Dependencies
