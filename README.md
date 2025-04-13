@@ -1,18 +1,18 @@
-# 🌱 Energy-Efficient IoT module with nRF52840
+# Energy-Efficient IoT module with nRF52840
 
 This is a cloud-connected, ultra-low-power embedded system designed to collect environmental data from **RuuviTags (via BLE)** and **TEROS 12 soil sensors (via SDI-12)**. It transmits the data securely over a **4G CAT-1 LTE module (A7670G)** to **Google Cloud Pub/Sub**, using embedded **RSA SHA-256 JWT signing** for authentication.
 
-## 🚀 Features
+## Features
 
-- 🔗 **BLE scanner for RuuviTags** (temperature, humidity, pressure, etc.)
-- 🌱 **SDI-12 communication** with TEROS 12 soil sensors (moisture, temperature, EC)
-- 🔐 **RSA SHA-256 JWT signing** directly on-device for Google Cloud authentication
-- ☁️ **Data publishing to Google Cloud Pub/Sub** over HTTPS (via AT commands)
-- 📡 **4G connectivity** using A7670G module with AT+HTTP commands
-- ⚡ **Energy-optimized design** for remote, battery-powered deployments
-- 🛠️ Runs on **Zephyr RTOS** for stability and real-time control
+- **BLE scanner for RuuviTags** (temperature, humidity, pressure, etc.)
+- **SDI-12 communication** with TEROS 12 soil sensors (moisture, temperature, EC)
+- **RSA SHA-256 JWT signing** directly on-device for Google Cloud authentication
+- **Data publishing to Google Cloud Pub/Sub** over HTTPS (via AT commands)
+- **4G connectivity** using A7670G module with AT+HTTP commands
+- **Energy-optimized design** for remote, battery-powered deployments
+- Runs on **Zephyr RTOS** for stability and real-time control
 
-## 📡 Hardware
+## Hardware
 
 | Component        | Description                                    |
 |------------------|-------------------------------------------------|
@@ -22,7 +22,7 @@ This is a cloud-connected, ultra-low-power embedded system designed to collect e
 | RuuviTags        | BLE beacons for environmental sensing           |
 | Power Source     | Powerbank                                       |
 
-## 🧠 Architecture
+## Architecture
 
 ```text
 ┌────────────┐
@@ -36,13 +36,13 @@ TEROS 12 ◀── SDI-12 ───▶│  nRF52840  │ ────▶ │    
                          JWT, AT+HTTP           Google Cloud Pub/Sub
 ```
 
-## 📦 Dependencies
+## Dependencies
 
 Nordic Semiconductor
 - nRF Connect SDK v2.9.0
 - nRF Connect SDK Toolchain V2.9.0
 
-## 🛠️ Build in Visual Studio Code
+## Build in Visual Studio Code
 
 To build this project in VScode you need nRF Connect extension. After installing the extension it will ask to install toolchain and SDK, both versions need to be min 2.9.0.
 
@@ -56,18 +56,18 @@ Steps to build:
     - Base configuration files: prj.conf & prj_extended.conf
 6. Then click "Generate and Build"
 
-## 🔌 Flashing via nRF Connect for Desktop
+## Flashing via nRF Connect for Desktop
 
 If you are not using J-Link debugger to flash then you flash the firmware using the **nRF Connect for Desktop** tool.
 
-### 🧰 Requirements
+### Requirements
 
 - **nRF Connect for Desktop**: [Download here](https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-desktop)
 - **Programmer App**: Install this inside nRF Connect for Desktop
 - **nRF52840 Dongle**
 - Compiled `.hex` file
 
-### 🔧 Steps
+### Steps
 
 1. **Plug in the Dongle**
    - Insert your nRF52840 Dongle into a USB port.
