@@ -40,7 +40,7 @@ TEROS 12 ◀── SDI-12 ───▶│  nRF52840  │ ────▶ │    
                          │  (Zephyr)  │        └────────┬───────────┘
                          └─────┬──────┘                 ▼
                          JWT, AT+HTTP           Google Cloud Pub/Sub
-
+```
 ---
 
 ## 📦 Dependencies
