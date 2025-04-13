@@ -1,6 +1,6 @@
 # Energy-Efficient IoT module with nRF52840
 
-This is a cloud-connected, ultra-low-power embedded system designed to collect environmental data from **RuuviTags (via BLE)** and **TEROS 12 soil sensors (via SDI-12)**. It transmits the data securely over a **4G CAT-1 LTE module (A7670G)** to **Google Cloud Pub/Sub**, using embedded **RSA SHA-256 JWT signing** for authentication.
+This is a cloud-connected, ultra-low-power embedded system designed to collect environmental data from **RuuviTags (via BLE)** and **TEROS 12 soil sensors (via SDI-12, later changed to bluetooth)**. It transmits the data securely over a **4G CAT-1 LTE module (A7670G)** to **Google Cloud Pub/Sub**, using embedded **RSA SHA-256 JWT signing** for authentication.
 
 ## Features
 
