@@ -2,8 +2,6 @@
 
 This is a cloud-connected, ultra-low-power embedded system designed to collect environmental data from **RuuviTags (via BLE)** and **TEROS 12 soil sensors (via SDI-12)**. It transmits the data securely over a **4G CAT-1 LTE module (A7670G)** to **Google Cloud Pub/Sub**, using embedded **RSA SHA-256 JWT signing** for authentication.
 
----
-
 ## 🚀 Features
 
 - 🔗 **BLE scanner for RuuviTags** (temperature, humidity, pressure, etc.)
@@ -14,8 +12,6 @@ This is a cloud-connected, ultra-low-power embedded system designed to collect e
 - ⚡ **Energy-optimized design** for remote, battery-powered deployments
 - 🛠️ Runs on **Zephyr RTOS** for stability and real-time control
 
----
-
 ## 📡 Hardware
 
 | Component        | Description                                    |
@@ -25,8 +21,6 @@ This is a cloud-connected, ultra-low-power embedded system designed to collect e
 | TEROS 12         | Soil sensor using SDI-12 protocol               |
 | RuuviTags        | BLE beacons for environmental sensing           |
 | Power Source     | Powerbank                                       |
-
----
 
 ## 🧠 Architecture
 
@@ -41,7 +35,6 @@ TEROS 12 ◀── SDI-12 ───▶│  nRF52840  │ ────▶ │    
                          └─────┬──────┘                 ▼
                          JWT, AT+HTTP           Google Cloud Pub/Sub
 ```
----
 
 ## 📦 Dependencies
 
@@ -63,8 +56,6 @@ Steps to build:
     - Base configuration files: prj.conf & prj_extended.conf
 6. Then click "Generate and Build"
 
----
-
 ## 🔌 Flashing via nRF Connect for Desktop
 
 If you are not using J-Link debugger to flash then you flash the firmware using the **nRF Connect for Desktop** tool.
@@ -75,8 +66,6 @@ If you are not using J-Link debugger to flash then you flash the firmware using 
 - **Programmer App**: Install this inside nRF Connect for Desktop
 - **nRF52840 Dongle**
 - Compiled `.hex` file
-
----
 
 ### 🔧 Steps
 
