@@ -1,0 +1,5 @@
+build*/
+includes/rsa.pem
+includes/privatekey.json
+includes/private.h
+.vscode/

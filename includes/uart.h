@@ -1,0 +1,20 @@
+#ifndef UART_H
+#define UART_H
+
+#include <zephyr/kernel.h>
+
+#define UART_DEVICE_NODE DT_CHOSEN(zephyr_shell_uart)
+#define MSG_SIZE 256
+
+extern struct k_msgq uart_msgq;
+
+static char rx_buf[MSG_SIZE];
+static int rx_buf_pos;
+
+void serial_cb(const struct device *dev, void *user_data);
+void print_uart(char *buf);
+
+int uart_init(void);
+
+#endif
+
