@@ -1,6 +1,6 @@
 #ifndef CLOUD_H
 #define CLOUD_H
-
+#include "private.h"
 // Defines for google cloud pubsub
 
 #define CLOUD_HOST          "pubsub.googleapis.com"

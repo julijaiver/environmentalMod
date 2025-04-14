@@ -45,22 +45,26 @@ char *jwt_construct_payload(struct payload *payload){
 char *jwt_build(char *header, struct payload payload){
     // TODO: build in format b64.b64.b64(rs256)
     char signing_input[2048];
-    char jwt_final[2048];
+    char *jwt_final = (char *)malloc(2048);
+    char *constructed_payload = jwt_construct_payload(&payload);
+
     uint8_t signature[256];
     size_t sig_len;
-    char *constructed_payload = jwt_construct_payload(&payload);
+    
     snprintf(signing_input, sizeof(signing_input), "%s.%s", base64_encrypt(header), base64_encrypt(constructed_payload));
     char *sha256 = SHA256(signing_input);
-    free(constructed_payload);
     
-    int ret = rsa_signature(sha256, (sizeof(sha256) / sizeof(sha256[0])), signature, &sig_len);
+    size_t sha_size = sizeof(&sha256) / sizeof(sha256[0]);
+    
+    int ret = rsa_signature(sha256, sha_size, signature, &sig_len);
     if (ret != 0) {
         printk("Failed to parse RSA private key.\n");
-        return ret;
+        return "ERROR failed to parse RSA\n";
     } else {
         printk("RSA Private Key successfully parsed.\n");
         snprintf(jwt_final, 2048, "%s.%s.%s", base64_encrypt(header), base64_encrypt(constructed_payload), base64_encrypt(signature));
         printk("Final JWT: %s\n", jwt_final);
+        free(constructed_payload);
         return jwt_final;
     }
 }

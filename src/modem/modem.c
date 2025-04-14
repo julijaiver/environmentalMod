@@ -107,7 +107,7 @@ modem_status_t send_http_post(const char *token, const char *data){
 		return MODEM_ERR_HTTP_SEND_FAIL;
 	}
 
-	
+	return MODEM_SUCCESS;
 }
 
 
