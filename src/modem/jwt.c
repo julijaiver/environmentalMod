@@ -51,20 +51,17 @@ char *jwt_build(char *header, struct payload payload){
     snprintf(signing_input, sizeof(signing_input), "%s.%s", base64_encrypt(header), base64_encrypt(jwt_construct_payload(&payload)));
     char *sha256 = SHA256(signing_input);
 
-    mbedtls_pk_context pk;
-    int ret;
-
     
-    ret = rsa_signature(sha256, (sizeof(sha256) / sizeof(sha256[0])), signature, &sig_len);
+    int ret = rsa_signature(sha256, (sizeof(sha256) / sizeof(sha256[0])), signature, &sig_len);
     if (ret != 0) {
-        printf("Failed to parse RSA private key.\n");
+        printk("Failed to parse RSA private key.\n");
         return ret;
+    } else {
+        printk("RSA Private Key successfully parsed.\n");
+        
     }
-
-    printf("RSA Private Key successfully parsed.\n");
-
-    // Free resources
-    mbedtls_pk_free(&pk);
     
+
+
     return signature;
 }

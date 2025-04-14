@@ -8,8 +8,6 @@
 #include <mbedtls/rsa.h>
 
 
-//extern static nrf_crypto_rsa_private_key_t private_key;
-//extern static uint8_t signature[256];
 
 int rsa_signature(const uint8_t *hash, size_t hash_len, uint8_t *sig, size_t *sig_len){
      int ret = 0;

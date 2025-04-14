@@ -5,6 +5,7 @@
 #include "modem.h"
 #include "uart.h"
 #include "cloud.h"
+#include "private.h"
 
 const char *modem_status_to_string(modem_status_t status) {
     switch (status) {
@@ -85,7 +86,7 @@ modem_status_t initialize_modem(void)
 modem_status_t send_http_post(const char *token, const char *data){
 	char cmd[256];
 	char http_msg[1024];
-	int conent_len = strlen(data);
+	int content_len = strlen(data);
 
 	//Start SSL connection
 	snprintf(cmd, sizeof(cmd), "AT+CIPSTART=\"SSL\", \"%s\", 443", CLOUD_HOST);
@@ -94,7 +95,7 @@ modem_status_t send_http_post(const char *token, const char *data){
 	}
 
 	// Build full HTTP POST request
-	snprintf(http_msg, sizeof(http_msg), CLOUD_REQUEST_TEMPLATE, conent_len, token, data);
+	snprintf(http_msg, sizeof(http_msg), CLOUD_REQUEST_TEMPLATE, content_len, token, data);
 	snprintf(cmd, sizeof(cmd), "AT+CIPSEND=%d", strlen(http_msg));
 	if(!send_at_command(cmd, ">", AT_RESPONSE_TIMEOUT)){
 		return MODEM_ERR_HTTP_SEND_START;
