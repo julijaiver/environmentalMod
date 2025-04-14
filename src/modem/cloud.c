@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "cloud.h"
+#include "private.h"
 
 
 

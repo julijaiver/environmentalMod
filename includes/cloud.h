@@ -2,8 +2,7 @@
 #define CLOUD_H
 
 // Defines for google cloud pubsub
-#define CLOUD_PROJECT_ID    "prj-mtp-jaak-leht-uf"
-#define CLOUD_TOPIC_ID      "environmental-thesis"
+
 #define CLOUD_HOST          "pubsub.googleapis.com"
 #define CLOUD_CONTENT_TYPE  "application/json"
 #define CLOUD_AUTHORIZATION "Bearer "
