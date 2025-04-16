@@ -39,7 +39,9 @@ bool send_at_command(const char *cmd, const char *expected_response, k_timeout_t
 
 	// Wait for response
 	while (k_msgq_get(&uart_msgq, &response, timeout) == 0) {
+		printk("%s\n", response);
 		if (strstr(response, expected_response) != NULL) {
+			printk("%s\n", response);
 			return true;
 		}
 		if (strstr(response, "ERROR") != NULL) {
@@ -57,13 +59,13 @@ modem_status_t initialize_modem(void)
 		return MODEM_ERR_AT_COMM;
 
 	// Check if SIM PIN is required
-	/*
-	if(send_at_command("AT+CPIN?", "+CPIN=SIM PIN", AT_RESPONSE_TIMEOUT)){
+	
+	if(send_at_command("AT+CPIN?", "+CPIN: SIM PIN", AT_RESPONSE_TIMEOUT)){
 		if(!send_at_command("AT+CPIN=\"1234\"", "OK", AT_RESPONSE_TIMEOUT)){
 			return MODEM_ERR_SIM_PIN;
 		}
 	}
-
+	/*
 	// Set network registration format
 	if (!send_at_command("AT+CREG=2", "OK", AT_RESPONSE_TIMEOUT))
 		return MODEM_ERR_CREG_SET;
