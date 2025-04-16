@@ -57,6 +57,7 @@ modem_status_t initialize_modem(void)
 		return MODEM_ERR_AT_COMM;
 
 	// Check if SIM PIN is required
+	/*
 	if(send_at_command("AT+CPIN?", "+CPIN=SIM PIN", AT_RESPONSE_TIMEOUT)){
 		if(!send_at_command("AT+CPIN=\"1234\"", "OK", AT_RESPONSE_TIMEOUT)){
 			return MODEM_ERR_SIM_PIN;
@@ -78,6 +79,7 @@ modem_status_t initialize_modem(void)
 	// Activate PDP context
 	if (!send_at_command("AT+CGACT=1,1", "OK", AT_RESPONSE_TIMEOUT)) 
 		return MODEM_ERR_PDP_ACTIVATE;
+	*/
 
 	return MODEM_SUCCESS;
 }

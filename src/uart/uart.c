@@ -6,7 +6,14 @@
 #include "modem.h"
 
 K_MSGQ_DEFINE(uart_msgq, MSG_SIZE, 10, 4);
-static const struct device *const uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
+static const struct device *const uart_dev = DEVICE_DT_GET(DT_NODELABEL(uart0));
+const struct uart_config uart_cfg = {
+	.baudrate = 115200,
+	.data_bits = UART_CFG_DATA_BITS_8,
+	.flow_ctrl = UART_CFG_FLOW_CTRL_NONE,
+	.parity = UART_CFG_PARITY_NONE,
+	.stop_bits = UART_CFG_STOP_BITS_1
+};
 
 void serial_cb(const struct device *dev, void *user_data)
 {

@@ -5,6 +5,7 @@
 // TODO: Try to shrink main function
 int main(void)
 {
+	k_msleep(2000);
 	int uart_ret = uart_init();
 	if (uart_ret < 0) {
 		printk("UART initialization failed: %d\n", uart_ret);
@@ -25,12 +26,12 @@ int main(void)
 			const char *data = "{\"data\":\"value\"}";
 
 			printk("Sending HTTP POST request to %s\n", CLOUD_HOST);
-			modem_ret = send_http_post(CLOUD_HOST, data);
+			/*modem_ret = send_http_post(CLOUD_HOST, data);
 			if(modem_ret != MODEM_SUCCESS) {
 				printk("HTTP POST failed: %s (%d)\n", modem_status_to_string(modem_ret), modem_ret);
 			} else {
 				printk("HTTP POST successful\n");
-			}
+			*/
 		}
 	}
 
