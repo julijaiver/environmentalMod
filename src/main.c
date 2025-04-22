@@ -7,6 +7,28 @@
 // TODO: Try to shrink main function
 int main(void)
 {
+
+
+	// TODO: Initialize UART
+	// TODO: Initialize bluetooth
+
+
+	// TODO: Open SIM card from module
+	// TODO: Wait for 1 Minute for module to initialize
+	// TODO: Set RTC up to date
+
+	
+	// TODO: Check for errors
+	// TODO: If errors handle them and try to initialize again for 10 times over 5min duration
+	
+
+	// TODO: Take first measurement
+	// TODO: Check if day has passed
+
+	// TODO: Wait for 5 minutes -> loop back to measurement
+
+
+
 	k_msleep(2000);
 	printk("Initialize JWT\n");
 	jwt_t access_token_jwt;
