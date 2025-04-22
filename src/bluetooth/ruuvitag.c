@@ -133,7 +133,7 @@ int activateBluetooth(void)
 	err = bt_enable(NULL);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
-		return 0;
+		return -1;
 	}
 
 	struct bt_le_scan_param scan_params = {

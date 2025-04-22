@@ -4,18 +4,23 @@
 #include "modem.h"
 #include "cloud.h"
 #include "jwt.h"
+#include "errors.h"
+
+uint8_t setup();
+
 // TODO: Try to shrink main function
 int main(void)
 {
 
-
+	
 	// TODO: Initialize UART
 	// TODO: Initialize bluetooth
-
-
-	// TODO: Open SIM card from module
+	// TODO: Initialize modem
 	// TODO: Wait for 1 Minute for module to initialize
 	// TODO: Set RTC up to date
+	uint8_t err = setup();
+	
+	
 
 	
 	// TODO: Check for errors
@@ -23,6 +28,7 @@ int main(void)
 	
 
 	// TODO: Take first measurement
+	// TODO: Save measurement
 	// TODO: Check if day has passed
 
 	// TODO: Wait for 5 minutes -> loop back to measurement
@@ -72,4 +78,32 @@ int main(void)
 	// TODO: take measurements every 5 minutes
 
 	return 0;
+}
+
+
+uint8_t setup(){
+	uint8_t err = ERR_NONE;
+
+	if (uart_init() != 0) {
+		err |= ERR_UART_SETUP;
+	} else {
+		modem_status_t modem_ret = initialize_modem();
+		if(modem_ret != MODEM_SUCCESS) {
+			printk("Modem initialization failed: %s (%d)\n", modem_status_to_string(modem_ret), modem_ret);
+			err |= ERR_MODEM_INIT;
+			err |= ERR_RTC_SET_TIME;
+		} else {
+			// sleep for 1min for modem to initialize properly
+			k_msleep(1000 * 60);
+
+		}
+	}
+
+	if(activateBluetooth() != 0) err |= ERR_BLUETOOTH_SETUP;
+
+	if(err != ERR_NONE){
+		print_erros(err);
+		handle_errors(err);
+	}
+	return err;
 }
