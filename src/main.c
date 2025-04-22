@@ -1,11 +1,22 @@
 #include <zephyr/kernel.h>
+#include <stdlib.h>
 #include "uart.h"
 #include "modem.h"
 #include "cloud.h"
+#include "jwt.h"
 // TODO: Try to shrink main function
 int main(void)
 {
 	k_msleep(2000);
+	printk("Initialize JWT\n");
+	jwt_t access_token_jwt;
+	jwt_init(&access_token_jwt);
+	printk("Ready\n");
+	printk("Build JWT\n");
+	char *res = jwt_build(JWT_HEADER, access_token_jwt.payload);
+	printk("Result: %s\n", res);
+
+	/*
 	int uart_ret = uart_init();
 	if (uart_ret < 0) {
 		printk("UART initialization failed: %d\n", uart_ret);
@@ -26,14 +37,15 @@ int main(void)
 			const char *data = "{\"data\":\"value\"}";
 
 			printk("Sending HTTP POST request to %s\n", CLOUD_HOST);
-			/*modem_ret = send_http_post(CLOUD_HOST, data);
+			modem_ret = send_http_post(CLOUD_HOST, data);
 			if(modem_ret != MODEM_SUCCESS) {
 				printk("HTTP POST failed: %s (%d)\n", modem_status_to_string(modem_ret), modem_ret);
 			} else {
 				printk("HTTP POST successful\n");
-			*/
+			
 		}
 	}
+	*/
 
 	// TODO: take measurements every 5 minutes
 

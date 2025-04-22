@@ -3,3 +3,5 @@ includes/rsa.pem
 includes/privatekey.json
 includes/private.h
 .vscode/
+includes/rsa_key.pem
+includes/rsa.der

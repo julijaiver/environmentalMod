@@ -1,12 +1,17 @@
 #include "jwt.h"
 #include "base64.h"
-#include "sha256.h"
-#include "rsa.h"
+#include "private.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+
+#include "mbedtls/sha256.h"
+#include "mbedtls/entropy.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/md.h"
+#include "mbedtls/ctr_drbg.h"
+
 #include <zephyr/kernel.h>
 
 
@@ -44,27 +49,114 @@ char *jwt_construct_payload(struct payload *payload){
 
 char *jwt_build(char *header, struct payload payload){
     // TODO: build in format b64.b64.b64(rs256)
-    char signing_input[2048];
-    char *jwt_final = (char *)malloc(2048);
-    char *constructed_payload = jwt_construct_payload(&payload);
 
-    uint8_t signature[256];
-    size_t sig_len;
     
-    snprintf(signing_input, sizeof(signing_input), "%s.%s", base64_encrypt(header), base64_encrypt(constructed_payload));
-    char *sha256 = SHA256(signing_input);
+    unsigned char signature[MBEDTLS_PK_SIGNATURE_MAX_SIZE];
+    size_t signature_len;
+    char *constructed_header_payload = (char*)malloc(1024);
+    unsigned char *jwt = (char*)malloc(2048);
+    unsigned char hash[32];
+
+    char *constructed_payload = jwt_construct_payload(&payload);
+    char *encoded_header = base64_encrypt(header);
+    char *encoded_payload = base64_encrypt(constructed_payload);
+    char *encoded_signature;
+    printk("Payload constructed\n");
     
-    size_t sha_size = sizeof(&sha256) / sizeof(sha256[0]);
-    
-    int ret = rsa_signature(sha256, sha_size, signature, &sig_len);
-    if (ret != 0) {
-        printk("Failed to parse RSA private key.\n");
-        return "ERROR failed to parse RSA\n";
-    } else {
-        printk("RSA Private Key successfully parsed.\n");
-        snprintf(jwt_final, 2048, "%s.%s.%s", base64_encrypt(header), base64_encrypt(constructed_payload), base64_encrypt(signature));
-        printk("Final JWT: %s\n", jwt_final);
+   
+    snprintf(constructed_header_payload, JWT_SIGNATURE_SIZE, "%s.%s", encoded_header, encoded_payload);
+
+    mbedtls_pk_context pk;
+    mbedtls_pk_init(&pk);
+    printk("pk context initialized\n");
+
+    mbedtls_entropy_context entropy;
+    mbedtls_entropy_init(&entropy);
+    printk("entropy initialized\n");
+
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_ctr_drbg_init(&ctr_drbg);
+    printk("ctr_drbg initialized\n");
+
+
+    mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, MBEDTLS_CTR_DRBG_MAX_SEED_INPUT);
+    printk("random seed generated\n");
+
+   // const unsigned char *private_key = (unsigned char*)GOOGLE_PRIVATE_KEY;
+
+    int ret = mbedtls_pk_parse_key(&pk, private_key_pem, (strlen((char*) private_key_pem) + 1), NULL, 0, mbedtls_ctr_drbg_random, &ctr_drbg);
+    if(ret != 0){
+        printk("ERROR: %d\n", ret);
+        mbedtls_pk_free(&pk);
+        mbedtls_entropy_free(&entropy);
+        mbedtls_ctr_drbg_free(&ctr_drbg);
+        mbedtls_psa_crypto_free();
+        free(constructed_header_payload);
         free(constructed_payload);
-        return jwt_final;
+        return NULL;
     }
+    printk("key parsed\n");
+    printk("Key type: %d\n", mbedtls_pk_get_type(&pk));
+
+    if (!mbedtls_pk_can_do(&pk, MBEDTLS_PK_RSA)) { // Check if it's an RSA key context
+        printk("ERROR: Parsed key is not recognized as RSA!\n");
+        // ... handle error, free resources, return ...
+        mbedtls_pk_free(&pk);
+        mbedtls_entropy_free(&entropy);
+        mbedtls_ctr_drbg_free(&ctr_drbg);
+        mbedtls_psa_crypto_free();
+        free(encoded_header);
+        free(encoded_payload);
+        free(encoded_signature);
+        return NULL;
+    }
+
+    
+    mbedtls_sha256(constructed_header_payload, strlen((char*)constructed_header_payload), hash, 0);
+    printk("sha256 encrypted: %s\n", hash);
+
+
+    printk("Attempting to sign hash...\n"); // Add this before
+    ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, 0, signature, MBEDTLS_PK_SIGNATURE_MAX_SIZE, &signature_len, mbedtls_ctr_drbg_random, &ctr_drbg);
+    if (ret != 0) {
+        // *** THIS IS THE MOST IMPORTANT PART NOW ***
+        printk("ERROR: mbedtls_pk_sign FAILED with code %d (0x%x)\n", ret, -ret);
+        // You MUST handle this error here. Maybe return NULL or an error code.
+        // Do not proceed as if signing succeeded!
+        // Free resources allocated so far before returning failure.
+        mbedtls_pk_free(&pk);
+        mbedtls_entropy_free(&entropy);
+        mbedtls_ctr_drbg_free(&ctr_drbg);
+        mbedtls_psa_crypto_free();
+        free(encoded_header);
+        free(encoded_payload);
+        free(encoded_signature);
+        return NULL; // Example: return NULL on failure
+    }
+
+
+
+  
+    encoded_signature = base64_encrypt(signature);
+    snprintf(jwt, JWT_SIGNATURE_SIZE, "%s.%s.%s", encoded_header, encoded_payload, encoded_signature);
+    printk("jwt constructed\n");
+
+    free(encoded_header);
+    free(encoded_payload);
+    free(encoded_signature);
+    printk("memory freed\n");
+
+    mbedtls_pk_free(&pk);
+    printk("pk memory freed\n");
+
+    mbedtls_entropy_free(&entropy);
+    printk("entropy memory freed\n");
+
+    mbedtls_ctr_drbg_free(&ctr_drbg);
+    printk("ctr_drbg memory freed\n");
+
+    printk("returning\n");
+    return jwt;
+    
+    
 }
