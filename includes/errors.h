@@ -2,6 +2,7 @@
 #define ERRORS_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
 // Errors for setup
 #define ERR_NONE            0x00

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "errors.h"
+#include "modem.h"
 
 void print_errors(uint8_t err){
     if(err == ERR_NONE) printk("Initilization successfull!\n");
@@ -57,10 +58,4 @@ void handle_errors(uint8_t err) {
         }
         if(tries > 5) printk("Failed\n");
     }
-    if(err & ERR_RTC_SET_TIME) {
-        tries = 0;
-        // TODO: Finish
-        while(tries < 5);
-    }
-
 }

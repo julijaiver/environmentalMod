@@ -1,6 +1,9 @@
 #ifndef MODEM_H
 #define MODEM_H
 
+#include <zephyr/kernel.h>
+#include <stdbool.h>
+
 #define AT_RESPONSE_TIMEOUT K_MSEC(5000)
 
 
@@ -35,7 +38,7 @@ const char *modem_status_to_string(modem_status_t status);
 bool send_at_command(const char *cmd, const char *expected_response, k_timeout_t timeout);
 modem_status_t initialize_modem(void);
 modem_status_t send_http_post(const char *url, const char *data);
-
+void modem_get_time(char *buffer, size_t buffer_size);
 
 
 #endif

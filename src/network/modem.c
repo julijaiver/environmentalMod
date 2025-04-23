@@ -2,6 +2,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 #include <string.h>
+#include <stdlib.h>
 #include "modem.h"
 #include "uart.h"
 #include "cloud.h"
@@ -114,45 +115,88 @@ modem_status_t send_http_post(const char *token, const char *data){
 	return MODEM_SUCCESS;
 }
 
+void modem_get_time(char *buffer, size_t buffer_size){
+	char cmd[256];
+    char response[MSG_SIZE];
+    int time_extracted = 0; 
+    int ok_received = 0;    
+    int ret;
 
-/*
-modem_status_t send_http_post(const char *url, const char *data)
-{
-	char cmd[MSG_SIZE];
+    if (buffer == NULL || buffer_size == 0) {
+        return; 
+    }
+    buffer[0] = '\0'; 
 
-	// Initialize HTTP service
-	if (!send_at_command("AT+HTTPINIT", "OK", AT_RESPONSE_TIMEOUT))
-		return MODEM_ERR_HTTP_INIT;
+    snprintf(cmd, sizeof(cmd), "AT+CCLK?");
+    print_uart(cmd);
+    print_uart("\r\n");
 
-	// Set HTTP URL
-	snprintf(cmd, sizeof(cmd), "AT+HTTPPARA=\"URL\",\"%s\"", url);
-	if (!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) 
-		return MODEM_ERR_HTTP_URL;
+    
+    while ((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0) {
+        
+        printk("MODEM_RX: %s\n", response);
 
-	// Set HTTP content type
-	if (!send_at_command("AT+HTTPPARA=\"CONTENT\",\"application/json\"", "OK", AT_RESPONSE_TIMEOUT))
-		return MODEM_ERR_HTTP_CONTENT_TYPE;
+        if (strstr(response, "ERROR") != NULL) {
+            printk("ERROR: Modem reported ERROR\n");
+            snprintf(buffer, buffer_size, "ERROR");
+            return;
+        }
+        char *start = strstr(response, "+CCLK: ");
 
-	// TODO: Implement authorization: bearer token
+        if (start) {
+            char *quote1 = strchr(start, '\"');
 
-	// Set HTTP data
-	snprintf(cmd, sizeof(cmd), "AT+HTTPDATA=%d,10000", strlen(data));
-	if (!send_at_command(cmd, "DOWNLOAD", AT_RESPONSE_TIMEOUT))
-		return MODEM_ERR_HTTP_DATA_LEN;
+            if (quote1) {
+                char *quote2 = strchr(quote1 + 1, '\"');
 
-	// Send data
-	print_uart(data);
-	if (!send_at_command("", "OK", AT_RESPONSE_TIMEOUT))
-		return MODEM_ERR_HTTP_DATA_SEND;
+                if (quote2) {
+                    size_t time_len = quote2 - (quote1 + 1);
+                     
+                    if (time_len < buffer_size) {
+                        memcpy(buffer, quote1 + 1, time_len);
+                        buffer[time_len] = '\0'; 
+                        time_extracted = 1;
+                    } else {
+                        printk("ERROR: Extracted time string too long for provided buffer (%u >= %u)\n", (unsigned int)time_len, (unsigned int)buffer_size);
+                        snprintf(buffer, buffer_size, "ERROR");
+                        return;
+                    }
+                } else {
+                    printk("ERROR: Found opening quote in +CCLK but no closing quote.\n");
+                    snprintf(buffer, buffer_size, "ERROR");
+                }
+            } else {
+                printk("ERROR: Found +CCLK but no opening quote.\n");
+                snprintf(buffer, buffer_size, "ERROR");
+            }
+        }
 
-	// Send HTTP POST request
-	if (!send_at_command("AT+HTTPACTION=1", "OK", AT_RESPONSE_TIMEOUT))
-		return MODEM_ERR_HTTP_POST;
+        if (strstr(response, "OK") != NULL) {
+            ok_received = 1;
+            break;
+        }
+    } 
 
-	// Wait for response
-	if (!send_at_command("AT+HTTPREAD", "OK", AT_RESPONSE_TIMEOUT))
-		return MODEM_ERR_HTTP_READ;
+    // Check results after loop finishes 
+    if (ret != 0) {
+        printk("ERROR: k_msgq_get timed out or failed (%d)\n", ret);
+        snprintf(buffer, buffer_size, "ERROR");
+        return; 
+    }
 
-	return MODEM_SUCCESS;
+    if (time_extracted && ok_received) {
+        return;
+    } else if (time_extracted && !ok_received) {
+        printk("WARN: Extracted time but did not receive OK confirmation.\n");
+        snprintf(buffer, buffer_size, "ERROR");
+        return;
+    } else if (!time_extracted && ok_received) {
+        printk("ERROR: Received OK but failed to extract time.\n");
+        snprintf(buffer, buffer_size, "ERROR");
+        return;
+    } else {
+        printk("ERROR: Command sequence finished without extracting time or receiving OK.\n");
+        snprintf(buffer, buffer_size, "ERROR");
+        return; 
+    }
 }
-*/

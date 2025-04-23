@@ -1,12 +1,17 @@
 #include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/rtc.h>
 #include <stdlib.h>
+#include <time.h>
 #include "uart.h"
 #include "modem.h"
 #include "cloud.h"
 #include "jwt.h"
 #include "errors.h"
+#include "realtime.h"
 
-uint8_t setup();
+uint8_t setup(struct tm *time);
+
 
 // TODO: Try to shrink main function
 int main(void)
@@ -18,20 +23,26 @@ int main(void)
 	// TODO: Initialize modem
 	// TODO: Wait for 1 Minute for module to initialize
 	// TODO: Set RTC up to date
-	uint8_t err = setup();
-	
-	
+	struct tm rtc_time;
 
+	uint8_t err = setup(&rtc_time);
 	
-	// TODO: Check for errors
-	// TODO: If errors handle them and try to initialize again for 10 times over 5min duration
 	
+	if(err == ERR_NONE){
+		// Main loop
+		while(1){
+			k_msleep(1000);
+			print_current_time();
+			// TODO: Take first measurement
+			// TODO: Save measurement
+			// TODO: Check if day has passed
 
-	// TODO: Take first measurement
-	// TODO: Save measurement
-	// TODO: Check if day has passed
+			// TODO: Wait for 5 minutes -> loop back to measurement
 
-	// TODO: Wait for 5 minutes -> loop back to measurement
+		}
+	}
+	// Make error loop (blink led etc...)
+
 
 
 
@@ -45,25 +56,6 @@ int main(void)
 	printk("Result: %s\n", res);
 
 	/*
-	int uart_ret = uart_init();
-	if (uart_ret < 0) {
-		printk("UART initialization failed: %d\n", uart_ret);
-	} else {
-		printk("UART initialization successful\n");
-
-		printk("Initializing modem...\n");
-
-		// TODO: add timer to send only once a day
-		modem_status_t modem_ret = initialize_modem();
-		if(modem_ret != MODEM_SUCCESS) {
-			printk("Modem initialization failed: %s (%d)\n", modem_status_to_string(modem_ret), modem_ret);
-		} else {
-			printk("Modem initialization successful\n");
-
-			// TODO: move these to a separate function
-			
-			const char *data = "{\"data\":\"value\"}";
-
 			printk("Sending HTTP POST request to %s\n", CLOUD_HOST);
 			modem_ret = send_http_post(CLOUD_HOST, data);
 			if(modem_ret != MODEM_SUCCESS) {
@@ -81,7 +73,7 @@ int main(void)
 }
 
 
-uint8_t setup(){
+uint8_t setup(struct tm *time){
 	uint8_t err = ERR_NONE;
 
 	if (uart_init() != 0) {
@@ -93,16 +85,22 @@ uint8_t setup(){
 			err |= ERR_MODEM_INIT;
 			err |= ERR_RTC_SET_TIME;
 		} else {
-			// sleep for 1min for modem to initialize properly
-			k_msleep(1000 * 60);
-
+			k_msleep(1000 * 15);
+			char time_str[32];
+			size_t time_str_size = sizeof(time_str); 
+			modem_get_time(time_str, time_str_size);
+			if(time_str != "ERROR"){
+				set_system_time(time_str, time);
+			} else {
+				err |= ERR_RTC_SET_TIME;
+			}
 		}
 	}
 
-	if(activateBluetooth() != 0) err |= ERR_BLUETOOTH_SETUP;
+	//if(activateBluetooth() != 0) err |= ERR_BLUETOOTH_SETUP;
 
 	if(err != ERR_NONE){
-		print_erros(err);
+		print_errors(err);
 		handle_errors(err);
 	}
 	return err;
