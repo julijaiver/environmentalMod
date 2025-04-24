@@ -5,3 +5,4 @@ includes/private.h
 .vscode/
 includes/rsa_key.pem
 includes/rsa.der
+includes/*.json

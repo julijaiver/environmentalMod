@@ -1,5 +1,8 @@
+#include <stdio.h>
 #include <stdlib.h>
+#include <zephyr/kernel.h>
 #include "errors.h"
+#include "uart.h"
 #include "modem.h"
 
 void print_errors(uint8_t err){
@@ -49,11 +52,13 @@ void handle_errors(uint8_t err) {
         while(tries <= 5){
             k_msleep(1000 * 10);
             printk(".\n");
+            /*
             if(activateBluetooth() == 0){
                 printk("Success\n");
                 err &= ~ERR_BLUETOOTH_SETUP;
                 break;
             }
+            */
             tries++;
         }
         if(tries > 5) printk("Failed\n");

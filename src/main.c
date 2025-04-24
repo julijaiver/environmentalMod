@@ -27,12 +27,20 @@ int main(void)
 
 	uint8_t err = setup(&rtc_time);
 	
-	
+	int tmp = 0;
 	if(err == ERR_NONE){
 		// Main loop
 		while(1){
 			k_msleep(1000);
 			print_current_time();
+			if(tmp == 0){
+				jwt_t access_token_jwt;
+				jwt_init(&access_token_jwt);
+				printk("iat: %lld, exp: %lld\n", access_token_jwt.payload.iat, access_token_jwt.payload.exp);
+				char *res = jwt_build(JWT_HEADER, access_token_jwt.payload);
+				printk("Signed: %s\n", res);
+				tmp = 1;
+			}
 			// TODO: Take first measurement
 			// TODO: Save measurement
 			// TODO: Check if day has passed
@@ -42,32 +50,6 @@ int main(void)
 		}
 	}
 	// Make error loop (blink led etc...)
-
-
-
-
-	k_msleep(2000);
-	printk("Initialize JWT\n");
-	jwt_t access_token_jwt;
-	jwt_init(&access_token_jwt);
-	printk("Ready\n");
-	printk("Build JWT\n");
-	char *res = jwt_build(JWT_HEADER, access_token_jwt.payload);
-	printk("Result: %s\n", res);
-
-	/*
-			printk("Sending HTTP POST request to %s\n", CLOUD_HOST);
-			modem_ret = send_http_post(CLOUD_HOST, data);
-			if(modem_ret != MODEM_SUCCESS) {
-				printk("HTTP POST failed: %s (%d)\n", modem_status_to_string(modem_ret), modem_ret);
-			} else {
-				printk("HTTP POST successful\n");
-			
-		}
-	}
-	*/
-
-	// TODO: take measurements every 5 minutes
 
 	return 0;
 }

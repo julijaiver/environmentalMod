@@ -5,11 +5,14 @@
 #include <time.h>
 #include "private.h"
 
-#define JWT_HEADER "{\"alg\": \"RS256\", \"typ\": \"JWT\", \"kid\": \"" GOOGLE_PRIVATE_KEY_ID "\"}"
-#define JWT_ISSUER "thesis2025-457109@appspot.gserviceaccount.com"
-#define JWT_SUBJECT "thesis2025-457109@appspot.gserviceaccount.com"
-#define JWT_AUDIENCE "https://pubsub.googleapis.com/"
-#define JWT_SIGNATURE_SIZE 1024
+#define JWT_HEADER          "{\"alg\":\"RS256\",\"kid\":\"" GOOGLE_PRIVATE_KEY_ID "\",\"typ\":\"JWT\"}"
+#define JWT_ISSUER          "viherpysakki@prj-mtp-jaak-leht-ufl.iam.gserviceaccount.com"
+#define JWT_SUBJECT         "viherpysakki@prj-mtp-jaak-leht-ufl.iam.gserviceaccount.com"
+#define JWT_AUDIENCE        "https://oauth2.googleapis.com/token"
+#define JWT_SCOPE           "https://www.googleapis.com/auth/pubsub"
+#define JWT_SIGNATURE_SIZE  1024
+
+// "https://pubsub.googleapis.com/"
 
 
 //static const unsigned char* private_key = (unsigned char*) GOOGLE_PRIVATE_KEY;
@@ -21,20 +24,21 @@ struct payload{
     const char *audi;
     const char *iss;
     const char *sub;
-    uint32_t iat;
-    uint32_t exp;
+    const char *scope;
+    long long int iat;
+    long long int exp;
 };
 
 typedef struct {
-    const char *header;
+    unsigned char *header;
     struct payload payload;
-    char *signature;
+    unsigned char *signature;
 } jwt_t;
 
 
 
 void jwt_init(jwt_t *jwt);
-char *jwt_build(char *header, struct payload payload);
+char *jwt_build(unsigned char *header, struct payload payload);
 char *jwt_construct_payload(struct payload *payload);
 
 #endif

@@ -8,12 +8,13 @@ char base64_map[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
                      'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
                      'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '_'};
 
-char *base64_encrypt(const char *str){
-    char *encoded = (char*)malloc(strlen(str) * 4 / 3 + 4);
+char *base64_encrypt(unsigned char *str, size_t len){
+    size_t output_len = ((len + 2) / 3) * 4;
+    char *encoded = (char*)malloc(output_len + 1);
     char buf[3];
     int ch = 0, c = 0;
 
-    for(int i = 0; str[i] != '\0'; i++){
+    for(int i = 0; i < len; i++){
         buf[ch++] = str[i];
         if(ch == 3){
             // shift 2 bits right to extract 6 bits and use shifted value to map b64 char
@@ -35,19 +36,17 @@ char *base64_encrypt(const char *str){
 
     // check if padding "=" is needed
 	// bas64URL doesent use padding
-	/*
+	
     if(ch > 0){
         encoded[c++] = base64_map[buf[0] >> 2];
         if(ch == 1){
             encoded[c++] = base64_map[(buf[0] & 0x03) << 4];
-            encoded[c++] = '=';
         } else if(ch == 2){
             encoded[c++] = base64_map[((buf[0] & 0x03) << 4) + (buf[1] >> 4)];
             encoded[c++] = base64_map[(buf[1] & 0x0f) << 2];
         }
-        encoded[c++] = '=';
     }
-	*/
+	
 
     encoded[c] = '\0';
     return encoded;

@@ -27,12 +27,9 @@ void set_system_time(const char *str, struct tm *time){
     time->tm_sec = sec;
     time->tm_isdst = 0;
 
-    printk("Struct tm before mktime: Year=%d, Mon=%d, Day=%d, Hour=%d, Min=%d, Sec=%d\n",
-       time->tm_year, time->tm_mon, time->tm_mday, time->tm_hour, time->tm_min, time->tm_sec);
-
+   
 
     time_t epoch = mktime(time);
-    printk("mktime returned: %ld\n", (long)epoch);
     if(epoch == (time_t)-1){
         printk("Invalid time struct\n");
         return;
@@ -55,6 +52,7 @@ void print_current_time(){
     struct timespec now_ts;
     if (clock_gettime(CLOCK_REALTIME, &now_ts) == 0) {
         struct tm *t = gmtime(&now_ts.tv_sec);
+        printk("Epoch: %lld\n", now_ts.tv_sec);
         printk("Now: %04d-%02d-%02d %02d:%02d:%02d\n",
                t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
                t->tm_hour, t->tm_min, t->tm_sec);
@@ -63,11 +61,11 @@ void print_current_time(){
     }
 }
 
-void get_current_time(struct timespec *current_ts){
+
+time_t get_current_time(){
     struct timespec tmp_ts;
     if(clock_gettime(CLOCK_REALTIME, &tmp_ts) == 0){
-        current_ts = gmtime(&tmp_ts.tv_sec);
-    } else {
-        printk("Failed to get current time\n");
+        return tmp_ts.tv_sec;
     }
+    return (time_t)-1;
 }
