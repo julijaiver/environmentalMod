@@ -14,11 +14,7 @@
                               "Authorization: " CLOUD_AUTHORIZATION " %s\r\n\r\n" \
                               "%s\r\n"
 
-
-// "{\"messages\": [{\"data\": \"%s\"}]}"
-
-char* cloud_build_request(char* data);
-char* cloud_request_access_token();
+const char *cloud_request_access_token();
 
 #endif
 

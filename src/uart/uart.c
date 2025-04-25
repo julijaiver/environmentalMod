@@ -1,7 +1,12 @@
+// RTOS
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
+
+// Standard libraries
 #include <string.h>
+
+// Includes
 #include "uart.h"
 #include "modem.h"
 

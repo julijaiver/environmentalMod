@@ -1,8 +1,13 @@
+// Standard libraries
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+
+// nrf SDK
 #include <sys/time.h>
+
+// Includes
 #include "realtime.h"
 #include "modem.h"
 
@@ -41,7 +46,7 @@ void set_system_time(const char *str, struct tm *time){
     };
 
     if(clock_settime(CLOCK_REALTIME, &ts) != 0){
-        printk("Failet to set system time\n");
+        printk("Failed to set system time\n");
     } else {
         printk("system time set successfully\n");
     }

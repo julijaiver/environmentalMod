@@ -1,20 +1,24 @@
+// Includes
 #include "jwt.h"
 #include "base64.h"
 #include "private.h"
 #include "realtime.h"
 
+// Standard libraries
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
 
+// Cryptography
 #include "mbedtls/sha256.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/md.h"
 #include "mbedtls/ctr_drbg.h"
 
+// RTOS
 #include <zephyr/kernel.h>
 
 
@@ -33,8 +37,6 @@ void jwt_init(jwt_t *jwt){
     jwt->payload.sub = JWT_SUBJECT;
     jwt->payload.iat = get_current_time() - (3600 * 3); // Adjust to UCT
     jwt->payload.exp = jwt->payload.iat + 3600;
-
-    jwt->signature = "signature";
 }
 
 char *jwt_construct_payload(struct payload *payload){
@@ -106,7 +108,6 @@ char *jwt_build(unsigned char *header, struct payload payload){
         mbedtls_psa_crypto_free();
         free(encoded_header);
         free(encoded_payload);
-        free(encoded_signature);
         return NULL;
     }
 
@@ -125,7 +126,6 @@ char *jwt_build(unsigned char *header, struct payload payload){
         mbedtls_psa_crypto_free();
         free(encoded_header);
         free(encoded_payload);
-        free(encoded_signature);
         return NULL;
     }
     

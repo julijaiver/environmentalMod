@@ -1,6 +1,11 @@
+// Standard libraries
 #include <stdio.h>
 #include <stdlib.h>
+
+// RTOS
 #include <zephyr/kernel.h>
+
+// Includes
 #include "errors.h"
 #include "uart.h"
 #include "modem.h"

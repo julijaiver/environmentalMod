@@ -30,14 +30,18 @@ typedef enum {
     MODEM_ERR_HTTP_READ = -16,
 	MODEM_ERR_SSL_CONNECT = -17,
     MODEM_ERR_HTTP_SEND_START = -18,
-    MODEM_ERR_HTTP_SEND_FAIL = -19
+    MODEM_ERR_HTTP_SEND_FAIL = -19,
+    MODEM_ERR_HTTP_TERM = -20
 } modem_status_t;
 
 
 const char *modem_status_to_string(modem_status_t status);
 bool send_at_command(const char *cmd, const char *expected_response, k_timeout_t timeout);
 modem_status_t initialize_modem(void);
-modem_status_t send_http_post(const char *url, const char *data);
+modem_status_t send_http_post(const char *url, const char *content_type, const char *data, size_t data_len);
+modem_status_t start_http_client();
+modem_status_t stop_http_client();
+modem_status_t read_http_response(char *res);
 void modem_get_time(char *buffer, size_t buffer_size);
 
 

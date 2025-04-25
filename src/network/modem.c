@@ -1,13 +1,19 @@
+// RTOS
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
+
+// Standard libraries
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+// Includes
 #include "modem.h"
 #include "uart.h"
 #include "cloud.h"
 #include "private.h"
+#include "cJSON.h"
 
 const char *modem_status_to_string(modem_status_t status) {
     switch (status) {
@@ -28,6 +34,7 @@ const char *modem_status_to_string(modem_status_t status) {
 		case MODEM_ERR_SSL_CONNECT:			return "MODEM_ERR_SSL_CONNECT";
 		case MODEM_ERR_HTTP_SEND_START:		return "MODEM_ERR_HTTP_SEND_START";
 		case MODEM_ERR_HTTP_SEND_FAIL:		return "MODEM_ERR_HTTP_SEND_FAIL";
+        case MODEM_ERR_HTTP_TERM:           return "MODEM_ERR_HTTP_TERM";
         default:							return "UNKNOWN_ERROR";
     }
 }
@@ -43,7 +50,6 @@ bool send_at_command(const char *cmd, const char *expected_response, k_timeout_t
 	while (k_msgq_get(&uart_msgq, &response, timeout) == 0) {
 		printk("%s\n", response);
 		if (strstr(response, expected_response) != NULL) {
-			printk("%s\n", response);
 			return true;
 		}
 		if (strstr(response, "ERROR") != NULL) {
@@ -88,30 +94,77 @@ modem_status_t initialize_modem(void)
 	return MODEM_SUCCESS;
 }
 
+modem_status_t start_http_client(){
+     if(!send_at_command("AT+HTTPINIT", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_INIT;
+     return MODEM_SUCCESS;
+}
 
-modem_status_t send_http_post(const char *token, const char *data){
-	char cmd[256];
-	char http_msg[1024];
-	int content_len = strlen(data);
+modem_status_t stop_http_client(){
+    if(!send_at_command("AT+HTTPTERM", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_TERM;
+    return MODEM_SUCCESS;
+}
 
-	//Start SSL connection
-	snprintf(cmd, sizeof(cmd), "AT+CIPSTART=\"SSL\", \"%s\", 443", CLOUD_HOST);
-	if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)){
-		return MODEM_ERR_SSL_CONNECT;
-	}
+modem_status_t read_http_response(char *res){
+    int ret, response_len;
+    char response[1024 * 8];
+    char cmd[256];
+    
+    if(!send_at_command("AT+HTTPREAD?", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_READ;
 
-	// Build full HTTP POST request
-	snprintf(http_msg, sizeof(http_msg), CLOUD_REQUEST_TEMPLATE, content_len, token, data);
-	snprintf(cmd, sizeof(cmd), "AT+CIPSEND=%d", strlen(http_msg));
-	if(!send_at_command(cmd, ">", AT_RESPONSE_TIMEOUT)){
-		return MODEM_ERR_HTTP_SEND_START;
-	}
+    while ((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0) {
+        
+        if (strstr(response, "ERROR") != NULL) {
+            printk("ERROR: Modem reported ERROR\n");
+            snprintf(res, 8, "ERROR");
+            return MODEM_ERR_HTTP_READ;
+        }
+        int parsed =  sscanf(response, "+HTTPREAD: LEN,%d", &response_len);
+    }
 
-	// Send HTTP message
-	print_uart(http_msg);
-	if(!send_at_command("", "SEND OK", AT_RESPONSE_TIMEOUT)){
-		return MODEM_ERR_HTTP_SEND_FAIL;
-	}
+    snprintf(cmd, 256, "AT+HTTPREAD=0,%d", response_len);
+    if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_READ;
+
+    while((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0){
+        if (strstr(response, "ERROR") != NULL) {
+            printk("ERROR: Modem reported ERROR\n");
+            snprintf(res, 8, "ERROR");
+            return MODEM_ERR_HTTP_READ;
+        }
+        if(strchr(response, '{') != NULL){
+            cJSON *response_json = cJSON_ParseWithLength(response, response_len);
+            if(response_json == NULL) return MODEM_ERR_HTTP_READ;
+            cJSON *token = cJSON_GetObjectItemCaseSensitive(response_json, "access_token");
+            res = token->valuestring;
+
+
+            cJSON_Delete(response_json);
+            cJSON_Delete(token);
+        }
+    }
+
+   
+
+    return MODEM_SUCCESS;
+}
+
+modem_status_t send_http_post(const char *url, const char *content_type, const char *data, size_t data_len){
+	char cmd[1024 * 8];
+    size_t cmd_len = sizeof(cmd);
+ 
+    snprintf(cmd, cmd_len, "AT+HTTPPARA=\"URL\", %s", url);
+    if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_URL;
+
+    snprintf(cmd, cmd_len, "AT+HTTPPARA=\"CONTENT\", %s", content_type);
+    if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_CONTENT_TYPE;
+
+    snprintf(cmd, cmd_len, "AT+HTTPDATA=%zu, 10000", data_len);
+    if(send_at_command(cmd, "DOWNLOAD", AT_RESPONSE_TIMEOUT)){
+        snprintf(cmd, cmd_len, "%s", data);
+        if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_DATA_SEND;
+    } else {
+        return MODEM_ERR_HTTP_DATA_LEN;
+    }
+    if(!send_at_command("AT+HTTPACTION=1", "200", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_SEND_FAIL;
 
 	return MODEM_SUCCESS;
 }
