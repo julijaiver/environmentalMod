@@ -20,7 +20,7 @@ const char* cloud_request_access_token() {
 	printk("iat: %lld, exp: %lld\n", access_token_jwt.payload.iat, access_token_jwt.payload.exp);
 	char *res = jwt_build(JWT_HEADER, access_token_jwt.payload);
     
-    size_t res_len = sizeof(sizeof(&res) / sizeof(res[0]));
+    size_t res_len = strlen(res);
     modem_ret = send_http_post(ACCESS_TOKEN_URL, ACCESS_TOKEN_CONTENT_TYPE, res, res_len);
     if(modem_ret != MODEM_SUCCESS) return modem_status_to_string(modem_ret);
 

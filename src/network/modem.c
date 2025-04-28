@@ -147,6 +147,13 @@ modem_status_t read_http_response(char *res){
     return MODEM_SUCCESS;
 }
 
+/*
+* @param url url to send request 
+* @param content_type ex. application/json, x-www-form-urlencoded etc... 
+* @param data body of POST request
+* @param data_len length of the body
+* @return Status code for modem
+*/
 modem_status_t send_http_post(const char *url, const char *content_type, const char *data, size_t data_len){
 	char cmd[1024 * 8];
     size_t cmd_len = sizeof(cmd);
@@ -188,7 +195,7 @@ void modem_get_time(char *buffer, size_t buffer_size){
     
     while ((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0) {
         
-        printk("MODEM_RX: %s\n", response);
+        printk("%s\n", response);
 
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");

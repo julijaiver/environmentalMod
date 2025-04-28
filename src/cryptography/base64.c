@@ -12,6 +12,7 @@ char base64_map[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
 * @param str input string to encode
 * @param len size of input
 * @param mode 0 Base64, 1 Base64URL
+* @return Encoded string
 */
 char *base64_encrypt(unsigned char *str, size_t len, int mode){
     size_t output_len = ((len + 2) / 3) * 4;

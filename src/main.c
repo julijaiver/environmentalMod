@@ -30,6 +30,7 @@ int main(void)
 			print_current_time();
 			if(tmp == 0){
 				const char *acces_token = cloud_request_access_token();
+				printk("Token: %s\n", acces_token);
 				tmp = 1;
 			}
 			// TODO: Take first measurement
