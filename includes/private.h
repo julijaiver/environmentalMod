@@ -2,9 +2,9 @@
 #define PRIVATE_H
 
 // Google cloud
-#define GOOGLE_CLOUD_PROJECT_ID     ""
-#define GOOGLE_CLOUD_TOPIC_ID       ""
-#define GOOGLE_PRIVATE_KEY_ID       ""
+#define GOOGLE_CLOUD_PROJECT_ID     "thesis2025-457109"
+#define GOOGLE_CLOUD_TOPIC_ID       "environmentalModule"
+#define GOOGLE_PRIVATE_KEY_ID       "8029c71852cce428c14df2948d16e2ca6783115d"
 
 // Access token
 #define ACCESS_TOKEN_URL            "https://oauth2.googleapis.com/token"
@@ -18,12 +18,12 @@
 
 // JWT
 #define JWT_HEADER          "{\"alg\":\"RS256\",\"kid\":\"" GOOGLE_PRIVATE_KEY_ID "\",\"typ\":\"JWT\"}"
-#define JWT_ISSUER          ""
-#define JWT_SUBJECT         ""
+#define JWT_ISSUER          "thesis2025-457109@appspot.gserviceaccount.com"
+#define JWT_SUBJECT         "thesis2025-457109@appspot.gserviceaccount.com"
 #define JWT_AUDIENCE        "https://oauth2.googleapis.com/token"
 #define JWT_SCOPE           "https://www.googleapis.com/auth/pubsub"
 
 
-static const char *private_key_pem = "";
+static const char *private_key_pem = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDnPSWs4at0qq/9\nkwQ82J/X8WiTCWmQDyzXxlH6l3/NDKLK4Gwhnx3j3ssV8KdNYnZ1GPKfI7PnP/Nl\nn2DRmtjXgCLUPE/DaYPCgDv19J4bEYFA7uHLg/9MEfNI1i4CmIvPX/g3sxLYWHN/\neiXiuDkmBl79DhotYHfIbXRa6oES7pNFQVo/zI8PEVbDPAnLHBlu1vDpM3h4N1T8\nQBbVknQyTqgspM6M+3/CsyuBDU41HsDKDpveS2twkPMTSoAxlFO5hNwsak7cceHl\nM0vRucdhq4NEU9gN46+yIaIPx/2JOMEADKu3g72Mt7iNp6cUROEk+q28z1P5qhpF\nRa337VHjAgMBAAECggEADhA5xPYdaSuiwNqt7LMFpBEXJnu+QzgSprWo1+nA29kQ\nSYoBz/J1oFDOq/Ef67GFhmegnq2BzBp0Lh9vhWMg6Ji70laWSOP9uT8qGZi2YoUO\nn4/BUcRSxLvOvp5JqN5bZzhTlOeiL/nPkTz98t6RzM5t/OWPqzTTwO/PN/xNIoTp\nKK9NQWnm8tDB7RCiqC1zSvBbNFocqHdqvAj2cCnJ2TicixtsUdl60bMo4ql6LrJO\nmylMYm6R0rpwwoK4t6XvYk6wyexo856e7yODWoM8rWfkCqaRTl74fNKBIKYNDp6d\nWz1WRUrnTSDTg9x2OQKs6BSaznn8+xu0Uk5mzR5AoQKBgQD+7wcnxiCIP3GkCO1/\nN/LQRLvaRhw/VgECMCTxpjFyaMsHPZ7n2xg9eNxG79RjgibXuYR+uSwlHW1n755G\n4wp47R+v6P7ztnSFE9EeVB0395FNVjUWXsozCj19qA60VXR+lbqKrjb8dIg4F+55\nVimeYFmYofOhTnlSEKcEnm2bMwKBgQDoNL9vgpo2UcF8YGclSVSpL6BTnvxJCbKu\nf6sgfQQbWWtqvkn7KoVT1jr5T8AtmcW94tqVCZjUP+ETIENww2DzxH2I6vOn6Wyo\n6vgKmbFRwLjqP2TH3d2O9hU3M4iRkd5wuGCmfMVFqLdQyMJBUI2KZeLBpE5088aM\nCTt1/DXukQKBgEd4MXRYGiS4TJ6lFhf1UnBK5LMztpWXAd9gKetJIVGmyUx1XQg5\nJxmMuYx1jgB7q3INA3UXaqXZEyPxTFkpK3VtXNXPJzKh8xaf0J+FC0/2atjYkzd7\nSYp3k3eX1s99qZQXW92nK6ko7ktzghqoKjDJaDTfKlMNkfuMyZYE6Et7AoGBAOWH\n7ou9n8599jKJ4Kuc1xD+QQ8not5XtcaD8JaGvV6Df4jeXKboGy8KHvV+fcsVq7/N\n1J9qAyYbltKfG8sFdnrACg8joIKkXIKE8XcZAYx8Ys06qNZgW7gLTGFqkV7DwAvQ\nVcl8oEwBQGOcb1i81Yyutf0P+3Xj2qlmHt671lvhAoGARjhNohdRiUoDArawBwVd\nko8fRrx4VhWlQO3+B24rzJgZ2IXuHfuFgzZ4ZX/o0iy7YYeJZUARqSltlMd1kFC2\nTg7RxbryQSBDtu8cv5RA24nnuhZq+mqW6rP8kp5vYQwT3/6y4rdlT+P4OEw81LmP\n9j5zEkXGydSQTERqtn9Gras=\n-----END PRIVATE KEY-----\n";
 
 #endif
