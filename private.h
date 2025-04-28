@@ -1,0 +1,29 @@
+#ifndef PRIVATE_H
+#define PRIVATE_H
+
+// Google cloud
+#define GOOGLE_CLOUD_PROJECT_ID     ""
+#define GOOGLE_CLOUD_TOPIC_ID       ""
+#define GOOGLE_PRIVATE_KEY_ID       ""
+
+// Access token
+#define ACCESS_TOKEN_URL            "https://oauth2.googleapis.com/token"
+#define ACCESS_TOKEN_CONTENT_TYPE   "x-www-form-urlencoded"
+
+
+// Pub/Sub
+#define CLOUD_HOST          "pubsub.googleapis.com"
+#define CLOUD_CONTENT_TYPE  "application/json"
+#define CLOUD_AUTHORIZATION "Bearer"
+
+// JWT
+#define JWT_HEADER          "{\"alg\":\"RS256\",\"kid\":\"" GOOGLE_PRIVATE_KEY_ID "\",\"typ\":\"JWT\"}"
+#define JWT_ISSUER          ""
+#define JWT_SUBJECT         ""
+#define JWT_AUDIENCE        "https://oauth2.googleapis.com/token"
+#define JWT_SCOPE           "https://www.googleapis.com/auth/pubsub"
+
+
+static const char *private_key_pem = "";
+
+#endif
