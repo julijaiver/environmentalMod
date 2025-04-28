@@ -29,8 +29,8 @@ int main(void)
 			k_msleep(1000);
 			print_current_time();
 			if(tmp == 0){
-				const char *acces_token = cloud_request_access_token();
-				printk("Token: %s\n", acces_token);
+				const char *access_token = cloud_request_access_token();
+				printk("Token: %s\n", access_token);
 				tmp = 1;
 			}
 			// TODO: Take first measurement

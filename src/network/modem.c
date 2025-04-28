@@ -112,26 +112,31 @@ modem_status_t read_http_response(char *res){
     if(!send_at_command("AT+HTTPREAD?", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_READ;
 
     while ((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0) {
-        
+        printk("%s\n", response);
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");
             snprintf(res, 8, "ERROR");
             return MODEM_ERR_HTTP_READ;
         }
-        int parsed =  sscanf(response, "+HTTPREAD: LEN,%d", &response_len);
+        if(strstr(response, "+HTTPREAD:") != NULL){
+            printk("FOUND: %s\n", response);
+            int parsed =  sscanf(response, "+HTTPREAD: LEN,%d", &response_len);
+            printk("Got length: %d", response_len);
+        }
     }
 
     snprintf(cmd, 256, "AT+HTTPREAD=0,%d", response_len);
     if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_READ;
 
     while((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0){
+        printk("%s\n", response);
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");
             snprintf(res, 8, "ERROR");
             return MODEM_ERR_HTTP_READ;
         }
         if(strchr(response, '{') != NULL){
-            cJSON *response_json = cJSON_ParseWithLength(response, response_len);
+            cJSON *response_json = cJSON_Parse(response);
             if(response_json == NULL) return MODEM_ERR_HTTP_READ;
             cJSON *token = cJSON_GetObjectItemCaseSensitive(response_json, "access_token");
             res = token->valuestring;
@@ -164,7 +169,7 @@ modem_status_t send_http_post(const char *url, const char *content_type, const c
     snprintf(cmd, cmd_len, "AT+HTTPPARA=\"CONTENT\", %s", content_type);
     if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_CONTENT_TYPE;
 
-    snprintf(cmd, cmd_len, "AT+HTTPDATA=%zu, 10000", data_len);
+    snprintf(cmd, cmd_len, "AT+HTTPDATA=%u, 10000", data_len);
     if(send_at_command(cmd, "DOWNLOAD", AT_RESPONSE_TIMEOUT)){
         snprintf(cmd, cmd_len, "%s", data);
         if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_DATA_SEND;

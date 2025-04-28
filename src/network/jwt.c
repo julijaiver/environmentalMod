@@ -65,9 +65,9 @@ char *jwt_build(unsigned char *header, struct payload payload){
 
     char *constructed_payload = jwt_construct_payload(&payload);
     header_len = strlen((char*)header);
-    char *encoded_header = base64_encrypt(header, header_len, 1);
+    char *encoded_header = base64_encrypt(header, header_len, 0);
     payload_len = strlen(constructed_payload);
-    char *encoded_payload = base64_encrypt(constructed_payload, payload_len, 1);
+    char *encoded_payload = base64_encrypt(constructed_payload, payload_len, 0);
     char *encoded_signature;
     
    
@@ -129,7 +129,7 @@ char *jwt_build(unsigned char *header, struct payload payload){
         return NULL;
     }
     
-    encoded_signature = base64_encrypt(signature, signature_len, 1);
+    encoded_signature = base64_encrypt(signature, signature_len, 0);
     snprintf(jwt, JWT_SIGNATURE_SIZE, "%s.%s.%s", encoded_header, encoded_payload, encoded_signature);
 
     free(encoded_header);
