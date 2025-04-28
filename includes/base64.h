@@ -4,6 +4,6 @@
 #include <stddef.h>
 
 
-char *base64_encrypt(unsigned char *str, size_t len);
+char *base64_encrypt(unsigned char *str, size_t len, int mode);
 
 #endif
