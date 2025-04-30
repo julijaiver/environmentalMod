@@ -14,6 +14,17 @@
 #include "modem.h"
 #include "realtime.h"
 
+char* deleteChar(char* s, char ch) {
+    int i, j;
+    int len = strlen(s);
+    for (i = j = 0; i < len; i++) {
+        if (s[i] != ch) {
+            s[j++] = s[i];
+        }
+    }
+    s[j] = '\0';
+    return s;
+}
 
 uint8_t setup(struct tm *time){
 	uint8_t err = ERR_NONE;

@@ -4,7 +4,7 @@
 #include <zephyr/kernel.h>
 
 #define UART_DEVICE_NODE DT_CHOSEN(zephyr_shell_uart)
-#define MSG_SIZE 256
+#define MSG_SIZE 1024
 
 extern struct k_msgq uart_msgq;
 

@@ -4,7 +4,7 @@
 #include <time.h>
 
 uint8_t setup(struct tm *time);
-
+char* deleteChar(char* s, char ch);
 
 
 #endif

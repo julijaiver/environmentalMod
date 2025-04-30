@@ -31,6 +31,10 @@ int main(void)
 			if(tmp == 0){
 				const char *access_token = cloud_request_access_token();
 				printk("Token: %s\n", access_token);
+				int result = cloud_publish(access_token, NULL);
+				if(result == 0) {
+					printk("SUCCESS FUCK YEAAAAH\n");
+				}
 				tmp = 1;
 			}
 			// TODO: Take first measurement

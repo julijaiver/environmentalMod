@@ -14,6 +14,7 @@
 #include "cloud.h"
 #include "private.h"
 #include "cJSON.h"
+#include "device.h"
 
 const char *modem_status_to_string(modem_status_t status) {
     switch (status) {
@@ -35,6 +36,14 @@ const char *modem_status_to_string(modem_status_t status) {
 		case MODEM_ERR_HTTP_SEND_START:		return "MODEM_ERR_HTTP_SEND_START";
 		case MODEM_ERR_HTTP_SEND_FAIL:		return "MODEM_ERR_HTTP_SEND_FAIL";
         case MODEM_ERR_HTTP_TERM:           return "MODEM_ERR_HTTP_TERM";
+        case MODEM_ERR_HEADER_SET:          return "MODEM_ERR_HEADER_SET";
+        case MODEM_ERR_TCP_START:           return "MODEM_ERR_TCP_START";
+        case MODEM_ERR_TCP_STOP:            return "MODEM_ERR_TCP_STOP";
+        case MODEM_ERR_TCP_SEND:            return "MODEM_ERR_TCP_SEND";
+        case MODEM_ERR_PDP_START:           return "MODEM_ERR_PDP_START";
+        case MODEM_ERR_SSL_START:           return "MODEM_ERR_SSL_START";
+        case MODEM_ERR_PDP_STOP:            return "MODEM_ERR_PDP_STOP";
+        case MODEM_ERR_SSL_STOP:            return "MODEM_ERR_SSL_STOP";
         default:							return "UNKNOWN_ERROR";
     }
 }
@@ -106,13 +115,18 @@ modem_status_t stop_http_client(){
 
 modem_status_t read_http_response(char *res){
     int ret, response_len;
-    char response[1024 * 8];
-    char cmd[256];
-    
-    if(!send_at_command("AT+HTTPREAD?", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_READ;
+    char response[1024 * 2];
+    char cmd[50];
+    char *full_response = (char*)malloc(1024 * 2);
+    full_response[0] = '\0';
 
+    int i = 0;
+
+    snprintf(cmd, 50, "AT+HTTPREAD?");
+    print_uart(cmd);
+	print_uart("\r\n");
     while ((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0) {
-        printk("%s\n", response);
+        printk("Response %d: %s\n", i, response);
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");
             snprintf(res, 8, "ERROR");
@@ -121,33 +135,39 @@ modem_status_t read_http_response(char *res){
         if(strstr(response, "+HTTPREAD:") != NULL){
             printk("FOUND: %s\n", response);
             int parsed =  sscanf(response, "+HTTPREAD: LEN,%d", &response_len);
-            printk("Got length: %d", response_len);
+            printk("Got length: %d\n", response_len);
         }
+        i++;
     }
 
     snprintf(cmd, 256, "AT+HTTPREAD=0,%d", response_len);
     if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_READ;
-
+    
+    i = 0;
     while((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0){
-        printk("%s\n", response);
+        printk("Response lenght %u: %s\n", strlen(response), response);
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");
             snprintf(res, 8, "ERROR");
             return MODEM_ERR_HTTP_READ;
         }
-        if(strchr(response, '{') != NULL){
-            cJSON *response_json = cJSON_Parse(response);
-            if(response_json == NULL) return MODEM_ERR_HTTP_READ;
-            cJSON *token = cJSON_GetObjectItemCaseSensitive(response_json, "access_token");
-            res = token->valuestring;
-
-
-            cJSON_Delete(response_json);
-            cJSON_Delete(token);
+        if(strstr(response, "+HTTPREAD:") == NULL){ 
+            strcat(full_response, response);
+            printk("%d: %s\n", i, full_response);
         }
+        i++;
     }
+    
 
-   
+    
+   // printk("FULL RESPONSE: \n%s\n", deleteChar(full_response, '\n'));
+    cJSON *response_json = cJSON_Parse(deleteChar(full_response, '\n'));
+
+    if(response_json == NULL) return MODEM_ERR_HTTP_READ;
+    cJSON *token = cJSON_GetObjectItemCaseSensitive(response_json, "access_token");
+    snprintf(res, 1024 * 2, "%s", token->valuestring);
+
+    cJSON_Delete(response_json);
 
     return MODEM_SUCCESS;
 }
@@ -159,7 +179,7 @@ modem_status_t read_http_response(char *res){
 * @param data_len length of the body
 * @return Status code for modem
 */
-modem_status_t send_http_post(const char *url, const char *content_type, const char *data, size_t data_len){
+modem_status_t send_http_post(const char *url, const char *content_type, const char *data, size_t data_len, char *headers){
 	char cmd[1024 * 8];
     size_t cmd_len = sizeof(cmd);
  
@@ -168,6 +188,11 @@ modem_status_t send_http_post(const char *url, const char *content_type, const c
 
     snprintf(cmd, cmd_len, "AT+HTTPPARA=\"CONTENT\", %s", content_type);
     if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_CONTENT_TYPE;
+
+    if(headers != NULL){
+        snprintf(cmd, cmd_len, "AT+HTTPPARA=\"USERDATA\",%s", headers);
+        if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HEADER_SET;
+    }
 
     snprintf(cmd, cmd_len, "AT+HTTPDATA=%u, 10000", data_len);
     if(send_at_command(cmd, "DOWNLOAD", AT_RESPONSE_TIMEOUT)){
@@ -265,4 +290,40 @@ void modem_get_time(char *buffer, size_t buffer_size){
         snprintf(buffer, buffer_size, "ERROR");
         return; 
     }
+}
+
+modem_status_t start_tcp_socket(){
+    if(!send_at_command("AT+NETOPEN?", "+NETOPEN: 1", AT_RESPONSE_TIMEOUT)){
+        if(!send_at_command("AT+NETOPEN", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_PDP_START;
+    }
+
+    if(!send_at_command("AT+CSSLCFG=\"sslversion\", 0,3", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_SSL_START;
+    if(!send_at_command("AT+CSSLCFG=\"authmode\",0,0", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_SSL_START;
+    if(!send_at_command("AT+CCHSET=1", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
+    if(!send_at_command("AT+CCHSTART", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
+    if(!send_at_command("AT+CCHSSLCFG=0,0", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
+    if(!send_at_command("AT+CCHOPEN=0,\"pubsub.googleapis.com\",443,2", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
+    if(!send_at_command("AT+CCHOPEN?", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
+
+    return MODEM_SUCCESS;
+}
+
+modem_status_t stop_tcp_socket(){
+    send_at_command("AT+CCHCLOSE=0", "OK", AT_RESPONSE_TIMEOUT);
+    send_at_command("AT+CCHSTOP", "OK", AT_RESPONSE_TIMEOUT);
+    send_at_command("AT+NETCLOSE", "OK", AT_RESPONSE_TIMEOUT);
+    return MODEM_SUCCESS;
+}
+
+modem_status_t send_tcp_post_request(const char* request, size_t len){
+    char cmd[1024 * 2];
+
+    snprintf(cmd, 2048, "AT+CCHSEND=0, %u", len);
+    if(!send_at_command(cmd, ">", AT_RESPONSE_TIMEOUT));
+    
+    k_msleep(2000);
+    send_at_command(request, "", AT_RESPONSE_TIMEOUT);
+
+
+    return MODEM_SUCCESS;
 }
