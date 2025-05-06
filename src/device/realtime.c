@@ -10,9 +10,11 @@
 // Includes
 #include "realtime.h"
 #include "modem.h"
+#include "device.h"
+#include "private.h"
 
 
-
+static time_t last_sent_day = 0;
 
 void set_system_time(const char *str, struct tm *time){
      if(!str || !time) return;
@@ -64,6 +66,22 @@ void print_current_time(void){
     } else {
         printk("ERROR: clock_gettime() failed\n");
     }
+}
+
+void check_daily_data_upload(void){
+    struct timespec now_ts;
+    if(clock_gettime(CLOCK_REALTIME, &now_ts) == 0){
+        struct tm *t = gmtime(&now_ts.tv_sec);
+        printk("HOUR: %d, SENDING HOUR: %d\n", t->tm_hour, TIME_TO_SEND);
+        if(t->tm_hour == TIME_TO_SEND && t->tm_mday != last_sent_day){
+            send_day_data();
+            last_sent_day = t->tm_mday;
+            json_clean_data();
+        } 
+    } else {
+        printk("Not time to send\n");
+    } 
+
 }
 
 

@@ -68,29 +68,18 @@ uint8_t setup(struct tm *time){
 int take_measurement(time_t timeout){
 	time_t current_time = get_current_time();
 	json_data_t data;
-	int ret = 0;
+
 	while(1){
 		if(k_msgq_get(&json_msgq, &data, K_FOREVER) == 0){
 			json_add_data(data.mac, data.temp, data.humidity, data.pressure);
 		}
 		if(seen_count == RUUVITAG_COUNT){
-			char *json_string = json_get_data_string();
-			if(json_string != NULL){
-				ret = send_data(json_string);
-				if(ret != 0){
-					printk("ERROR: Failed to publish data\n");
-				}
-			} else {
-				ret = -1;
-				printk("ERROR: Failed to get JSON string\n");
-			}
-			cJSON_free(json_string);
 			break;
 		}
 		if(current_time >= timeout) return -1;
 		k_msleep(100);
 	}
-	return ret;
+	return 0;
 }
 
 int send_data(const char *data){
@@ -191,3 +180,21 @@ char *json_get_data_string(void){
 	k_mutex_unlock(&json_mutex);
 	return json_str;
 }
+
+int send_day_data(void){
+	int ret = 0;
+	char *json_string = json_get_data_string();
+	if (json_string != NULL){
+		ret = send_data(json_string);
+		if (ret != 0){
+			printk("ERROR: Failed to publish data\n");
+		}
+	}
+	else{
+		ret = -1;
+		printk("ERROR: Failed to get JSON string\n");
+	}
+	cJSON_free(json_string);
+	return ret;
+}
+

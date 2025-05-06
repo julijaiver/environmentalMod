@@ -17,6 +17,6 @@ void json_init(void);
 void json_add_data(const char *mac, double temp, double humidity, double pressure);
 void json_clean_data(void);
 char *json_get_data_string(void);
-
+int send_day_data(void);
 
 #endif

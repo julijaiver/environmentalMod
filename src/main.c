@@ -22,24 +22,25 @@ int main(void)
 
 	if (err == ERR_NONE){
 		int result = 0;
+
 		k_mutex_init(&json_mutex);
 		json_init();
 		// Main loop
 		while (1){
-			k_msleep(1000);
 			print_current_time();
-			
 
 			result = start_ble_scan();
 			if (result == 0){
+				printk("Taking measurement\n");
 				time_t timeout = get_current_time() + 300; // 5 Minute timeout
 				result = take_measurement(timeout);
 				if (result != 0)
 					printk("ERROR: Bluetooth Timeout\n");
 				stop_ble_scan();
 			}
+			check_daily_data_upload();
+			printk("Going to sleep\n");
 			k_msleep(1000 * 300); // 5 Minute sleep
-			json_clean_data();
 		}
 	}
 
