@@ -75,8 +75,8 @@ void parse_ruuvitag(uint8_t *data_ptr){
 		printk("Failed to que JSON data\n");
 	}
 
-	printk("DEVICE: %02X:%02X:%02X:%02X:%02X:%02X | Temperature: %.2f | Humidity: %.2f | Pressure: %.2f\n", device_id[0], device_id[1], device_id[2], device_id[3],
-		device_id[4], device_id[5], (float)temperature, (float)humidity, (float)pressure);
+	/* printk("DEVICE: %02X:%02X:%02X:%02X:%02X:%02X | Temperature: %.2f | Humidity: %.2f | Pressure: %.2f\n", device_id[0], device_id[1], device_id[2], device_id[3],
+		device_id[4], device_id[5], (float)temperature, (float)humidity, (float)pressure); */
 
 }
 

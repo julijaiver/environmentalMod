@@ -126,16 +126,13 @@ modem_status_t read_http_response(char *res){
     print_uart(cmd);
 	print_uart("\r\n");
     while ((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0) {
-        printk("Response %d: %s\n", i, response);
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");
             snprintf(res, 8, "ERROR");
             return MODEM_ERR_HTTP_READ;
         }
         if(strstr(response, "+HTTPREAD:") != NULL){
-            printk("FOUND: %s\n", response);
             int parsed =  sscanf(response, "+HTTPREAD: LEN,%d", &response_len);
-            printk("Got length: %d\n", response_len);
         }
         i++;
     }
@@ -145,7 +142,6 @@ modem_status_t read_http_response(char *res){
     
     i = 0;
     while((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0){
-        printk("Response lenght %u: %s\n", strlen(response), response);
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");
             snprintf(res, 8, "ERROR");
@@ -153,7 +149,6 @@ modem_status_t read_http_response(char *res){
         }
         if(strstr(response, "+HTTPREAD:") == NULL){ 
             strcat(full_response, response);
-            printk("%d: %s\n", i, full_response);
         }
         i++;
     }

@@ -68,6 +68,7 @@ uint8_t setup(struct tm *time){
 int take_measurement(time_t timeout){
 	time_t current_time = get_current_time();
 	json_data_t data;
+	int ret = 0;
 	while(1){
 		if(k_msgq_get(&json_msgq, &data, K_FOREVER) == 0){
 			json_add_data(data.mac, data.temp, data.humidity, data.pressure);
@@ -75,17 +76,21 @@ int take_measurement(time_t timeout){
 		if(seen_count == RUUVITAG_COUNT){
 			char *json_string = json_get_data_string();
 			if(json_string != NULL){
-				printk("%s\n", json_string);
-				cJSON_free(json_string);
+				ret = send_data(json_string);
+				if(ret != 0){
+					printk("ERROR: Failed to publish data\n");
+				}
 			} else {
+				ret = -1;
 				printk("ERROR: Failed to get JSON string\n");
 			}
+			cJSON_free(json_string);
 			break;
 		}
 		if(current_time >= timeout) return -1;
 		k_msleep(100);
 	}
-	return 0;
+	return ret;
 }
 
 int send_data(const char *data){
@@ -122,7 +127,7 @@ void json_init(void){
 		cJSON_AddItemToObject(root, ruuvitag_devices[i], device);
 	}
 	char *ini = cJSON_PrintUnformatted(root);
-	printk("JSON INITIALZIED: %s\n", ini);
+	//printk("JSON INITIALZIED: %s\n", ini);
 	cJSON_free(ini);
 	k_mutex_unlock(&json_mutex);
 }
@@ -135,7 +140,7 @@ void json_add_data(const char *mac, double temp, double humidity, double pressur
 	}
 
 	cJSON *device = cJSON_GetObjectItem(root, mac);	
-	printk("Got device: %s\n", device->string);
+	//printk("Got device: %s\n", device->string);
 	if(!device) {
 		printk("ERROR: Device NULL\n");
 		return;
@@ -178,7 +183,7 @@ char *json_get_data_string(void){
 	k_mutex_lock(&json_mutex, K_FOREVER);
 	if(!root)
 	{
-		printk("ROOT NULL\n");
+		printk("ERROR: ROOT NULL\n");
 		k_mutex_unlock(&json_mutex);
 		return NULL;
 	}	
