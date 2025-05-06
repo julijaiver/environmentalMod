@@ -1,3 +1,4 @@
+#include <zephyr/kernel.h>
 #include "base64.h"
 #include "stdlib.h"
 #include "string.h"
@@ -16,7 +17,7 @@ char base64_map[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
 */
 char *base64_encrypt(unsigned char *str, size_t len, int mode){
     size_t output_len = ((len + 2) / 3) * 4;
-    char *encoded = (char*)malloc(output_len + 1);
+    char *encoded = (char*)k_malloc(output_len + 1);
     char buf[3];
     int ch = 0, c = 0;
 

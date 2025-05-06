@@ -45,7 +45,7 @@ char *jwt_construct_payload(struct payload *payload){
         return NULL;
     }
     size_t len = snprintf(NULL, 0, "{\"iss\":\"%s\",\"sub\":\"%s\",\"scope\":\"%s\",\"aud\":\"%s\",\"iat\":%ld,\"exp\":%ld}", payload->iss, payload->sub, payload->scope, payload->audi, (long int)payload->iat, (long int)payload->exp);
-    char *result = (char *)malloc(len + 1); // Remember to free when constructing
+    char *result = (char *)k_malloc(len + 1); // Remember to free when constructing
     if(result == NULL){
         printk("Error: failed to allocate memory");
         return NULL;
@@ -59,8 +59,8 @@ char *jwt_build(unsigned char *header, struct payload payload){
     unsigned char signature[MBEDTLS_PK_SIGNATURE_MAX_SIZE];
     size_t signature_len, header_len, payload_len;
 
-    char *constructed_header_payload = (char*)malloc(1024);
-    unsigned char *jwt = (char*)malloc(2048);
+    char *constructed_header_payload = (char*)k_malloc(1024);
+    unsigned char *jwt = (char*)k_malloc(2048);
     unsigned char hash[32];
 
     char *constructed_payload = jwt_construct_payload(&payload);
@@ -69,6 +69,7 @@ char *jwt_build(unsigned char *header, struct payload payload){
     payload_len = strlen(constructed_payload);
     char *encoded_payload = base64_encrypt(constructed_payload, payload_len, 0);
     char *encoded_signature;
+    k_free(constructed_payload);
     
    
     snprintf(constructed_header_payload, JWT_SIGNATURE_SIZE, "%s.%s", encoded_header, encoded_payload);
@@ -93,8 +94,7 @@ char *jwt_build(unsigned char *header, struct payload payload){
         mbedtls_entropy_free(&entropy);
         mbedtls_ctr_drbg_free(&ctr_drbg);
         mbedtls_psa_crypto_free();
-        free(constructed_header_payload);
-        free(constructed_payload);
+        k_free(constructed_header_payload);
         return NULL;
     }
    
@@ -106,14 +106,15 @@ char *jwt_build(unsigned char *header, struct payload payload){
         mbedtls_entropy_free(&entropy);
         mbedtls_ctr_drbg_free(&ctr_drbg);
         mbedtls_psa_crypto_free();
-        free(encoded_header);
-        free(encoded_payload);
+        k_free(encoded_header);
+        k_free(encoded_payload);
+        k_free(constructed_header_payload);
         return NULL;
     }
 
     
     mbedtls_sha256(constructed_header_payload, strlen((char*)constructed_header_payload), hash, 0);
-   
+    k_free(constructed_header_payload);
     
     ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, 0, signature, MBEDTLS_PK_SIGNATURE_MAX_SIZE, &signature_len, mbedtls_ctr_drbg_random, &ctr_drbg);
     if (ret != 0) {
@@ -124,17 +125,17 @@ char *jwt_build(unsigned char *header, struct payload payload){
         mbedtls_entropy_free(&entropy);
         mbedtls_ctr_drbg_free(&ctr_drbg);
         mbedtls_psa_crypto_free();
-        free(encoded_header);
-        free(encoded_payload);
+        k_free(encoded_header);
+        k_free(encoded_payload);
         return NULL;
     }
     
     encoded_signature = base64_encrypt(signature, signature_len, 0);
     snprintf(jwt, JWT_SIGNATURE_SIZE, "%s.%s.%s", encoded_header, encoded_payload, encoded_signature);
 
-    free(encoded_header);
-    free(encoded_payload);
-    free(encoded_signature);
+    k_free(encoded_header);
+    k_free(encoded_payload);
+    k_free(encoded_signature);
 
     mbedtls_pk_free(&pk);
     mbedtls_entropy_free(&entropy);

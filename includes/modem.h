@@ -49,11 +49,11 @@ const char *modem_status_to_string(modem_status_t status);
 bool send_at_command(const char *cmd, const char *expected_response, k_timeout_t timeout);
 modem_status_t initialize_modem(void);
 modem_status_t send_http_post(const char *url, const char *content_type, const char *data, size_t data_len, char *headers);
-modem_status_t start_http_client();
-modem_status_t stop_http_client();
+modem_status_t start_http_client(void);
+modem_status_t stop_http_client(void);
 modem_status_t read_http_response(char *res);
-modem_status_t start_tcp_socket();
-modem_status_t stop_tcp_socket();
+modem_status_t start_tcp_socket(void);
+modem_status_t stop_tcp_socket(void);
 modem_status_t send_tcp_post_request(const char* request, size_t len);
 void modem_get_time(char *buffer, size_t buffer_size);
 

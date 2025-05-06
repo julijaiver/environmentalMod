@@ -50,7 +50,7 @@ void serial_cb(const struct device *dev, void *user_data)
 	}
 }
 
-void print_uart(char *buf)
+void print_uart(const char *buf)
 {
 	int msg_len = strlen(buf);
 

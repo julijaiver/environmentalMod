@@ -117,7 +117,7 @@ modem_status_t read_http_response(char *res){
     int ret, response_len;
     char response[1024 * 2];
     char cmd[50];
-    char *full_response = (char*)malloc(1024 * 2);
+    char *full_response = (char*)k_malloc(1024 * 2);
     full_response[0] = '\0';
 
     int i = 0;
@@ -162,7 +162,8 @@ modem_status_t read_http_response(char *res){
     
    // printk("FULL RESPONSE: \n%s\n", deleteChar(full_response, '\n'));
     cJSON *response_json = cJSON_Parse(deleteChar(full_response, '\n'));
-
+    k_free(full_response);
+    
     if(response_json == NULL) return MODEM_ERR_HTTP_READ;
     cJSON *token = cJSON_GetObjectItemCaseSensitive(response_json, "access_token");
     snprintf(res, 1024 * 2, "%s", token->valuestring);
@@ -292,7 +293,7 @@ void modem_get_time(char *buffer, size_t buffer_size){
     }
 }
 
-modem_status_t start_tcp_socket(){
+modem_status_t start_tcp_socket(void){
     if(!send_at_command("AT+NETOPEN?", "+NETOPEN: 1", AT_RESPONSE_TIMEOUT)){
         if(!send_at_command("AT+NETOPEN", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_PDP_START;
     }
@@ -308,7 +309,7 @@ modem_status_t start_tcp_socket(){
     return MODEM_SUCCESS;
 }
 
-modem_status_t stop_tcp_socket(){
+modem_status_t stop_tcp_socket(void){
     send_at_command("AT+CCHCLOSE=0", "OK", AT_RESPONSE_TIMEOUT);
     send_at_command("AT+CCHSTOP", "OK", AT_RESPONSE_TIMEOUT);
     send_at_command("AT+NETCLOSE", "OK", AT_RESPONSE_TIMEOUT);

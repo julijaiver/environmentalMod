@@ -7,3 +7,4 @@ includes/rsa_key.pem
 includes/rsa.der
 includes/*.json
 documentation/
+debug/

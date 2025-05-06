@@ -7,20 +7,14 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
+#include <stdio.h>
+#include "ruuvitag.h"
+#include "device.h"
 
-#define MANUFACTURER_ID 	0x9904
-#define MIN_ADV_LENGTH 		7
-#define RUUVI_RAWV2 		0x05
-#define RUUVI_RAWV2_LENGTH 	24
-#define FLAGS_LENGTH		2
-#define FLAGS_TYPE			0x01
-#define MD_TYPE				0xff
+K_MSGQ_DEFINE(json_msgq, sizeof(json_data_t), JSON_QUEUE_SIZE, 4);
+int seen_count = 0;
 
-void print(){
-	
-}
-
-static void parse_ruuvitag(uint8_t *data_ptr){
+void parse_ruuvitag(uint8_t *data_ptr){
 	uint8_t device_id[7]; // Device MAC-address
 	float temperature;  // Temperature
 	float humidity;     // Humidity
@@ -69,63 +63,83 @@ static void parse_ruuvitag(uint8_t *data_ptr){
 		device_id[i] = *data_ptr;
 		data_ptr++;
 	}
+	char mac[20];
+	snprintf(mac, 20, "%02X:%02X:%02X:%02X:%02X:%02X", device_id[0], device_id[1], device_id[2], device_id[3], device_id[4], device_id[5]);
+	json_data_t data;
+	strncpy(data.mac, mac, sizeof(data.mac));
+	data.mac[sizeof(data.mac) - 1] = '\0';
+	data.temp = temperature;
+	data.humidity = humidity;
+	data.pressure = pressure;
+	if(k_msgq_put(&json_msgq, &data, K_NO_WAIT) != 0){
+		printk("Failed to que JSON data\n");
+	}
 
 	printk("DEVICE: %02X:%02X:%02X:%02X:%02X:%02X | Temperature: %.2f | Humidity: %.2f | Pressure: %.2f\n", device_id[0], device_id[1], device_id[2], device_id[3],
 		device_id[4], device_id[5], (float)temperature, (float)humidity, (float)pressure);
 
-
 }
 
-static void scan_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type, struct net_buf_simple *ad){
-	if(ad->len < MIN_ADV_LENGTH){
-		printk("AD: message too short\n"); 
-		return;
-	} 
+void scan_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type, struct net_buf_simple *ad){
+	char addr_str[BT_ADDR_LE_STR_LEN];
+	bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
+	
+	for(int i = 0; i < RUUVITAG_COUNT; i++){
+		if(strstr(addr_str, ruuvitag_devices[i]) != NULL){
+			if(is_mac_seen(addr_str)) return;
+			add_seen_mac(addr_str);
+			
+			if(ad->len < MIN_ADV_LENGTH){
+				printk("AD: message too short\n"); 
+				return;
+			} 
 
-	uint8_t *buffer_idx = ad->data;
+			uint8_t *buffer_idx = ad->data;
 
-	if(*buffer_idx != FLAGS_LENGTH){
-		//printk("AD: no Flags structure\n"); 
-		return;
+			if(*buffer_idx != FLAGS_LENGTH){
+				printk("AD: no Flags structure\n"); 
+				return;
+			}
+
+			buffer_idx++;
+			if(*buffer_idx != FLAGS_TYPE){
+				printk("AD: no Flags type\n"); 
+				return;
+			}
+			buffer_idx += 2;
+
+			uint8_t md_length = *buffer_idx;
+			buffer_idx++;
+			if(*buffer_idx != MD_TYPE){
+				printk("AD: no manufacturer data type\n"); 
+				return;
+			}
+
+			buffer_idx++;
+			uint16_t company_identifier = (*buffer_idx << 8) + *(buffer_idx + 1);
+			if(company_identifier != MANUFACTURER_ID){
+				printk("AD: no Ruuvi identifier\n"); 
+				return;
+			}
+
+			if((ad->len - MIN_ADV_LENGTH) < (md_length - 3)){
+				printk("Ruuvi: data too short - %d - %d\n", md_length -3, ad->len - MIN_ADV_LENGTH); 
+				return;
+			}
+			if((ad->len - MIN_ADV_LENGTH) < RUUVI_RAWV2_LENGTH){
+				printk( "Ruuvi: RAWv2 data too short\n"); 
+				return;
+			}
+
+			buffer_idx += 2;
+			parse_ruuvitag(buffer_idx);
+		}
 	}
-
-	buffer_idx++;
-	if(*buffer_idx != FLAGS_TYPE){
-		printk("AD: no Flags type\n"); 
-		return;
-	}
-	buffer_idx += 2;
-
-	uint8_t md_length = *buffer_idx;
-	buffer_idx++;
-	if(*buffer_idx != MD_TYPE){
-		//printk("AD: no manufacturer data type\n"); 
-		return;
-	}
-
-	buffer_idx++;
-	uint16_t company_identifier = (*buffer_idx << 8) + *(buffer_idx + 1);
-	if(company_identifier != MANUFACTURER_ID){
-		printk("AD: no Ruuvi identifier\n"); 
-		return;
-	}
-
-	if((ad->len - MIN_ADV_LENGTH) < (md_length - 3)){
-		printk("Ruuvi: data too short - %d - %d\n", md_length -3, ad->len - MIN_ADV_LENGTH); 
-		return;
-	}
-	if((ad->len - MIN_ADV_LENGTH) < RUUVI_RAWV2_LENGTH){
-		printk( "Ruuvi: RAWv2 data too short\n"); 
-		return;
-	}
-
-	buffer_idx += 2;
-	parse_ruuvitag(buffer_idx);
 }
 
 
 
-int activateBluetooth(void)
+int activate_bluetooth(void)
 {
 	int err;
 
@@ -136,20 +150,47 @@ int activateBluetooth(void)
 		return -1;
 	}
 
-	struct bt_le_scan_param scan_params = {
-		.type 		= BT_LE_SCAN_TYPE_PASSIVE,
-		.interval 	= BT_GAP_SCAN_FAST_INTERVAL,
-		.window 	= BT_GAP_SCAN_FAST_WINDOW,
-		.options 	= BT_LE_SCAN_OPT_FILTER_DUPLICATE,
-	};
-
-	err = bt_le_scan_start(&scan_params, scan_found);
-	if(err){
-		printk("Scanning failed to start ERROR: %d\n", err);
-	} else {
-		printk("Scanning started\n");
-	}
-
-	printk("Exiting %s thread.\n", __func__);
 	return 0;
+}
+
+int start_ble_scan(void){
+	int err = bt_le_scan_start(&scan_params, scan_found);
+	if(err) return -1;
+
+	return 0;
+}
+
+int stop_ble_scan(void){
+	printk("Stopping bluetooth scan\n");
+	reset_seen_devices();
+	int err = bt_le_scan_stop();
+	if(err != 0) return -1;
+
+	return 0;
+}
+
+void reset_seen_devices() {
+    for (int i = 0; i < seen_count; i++) {
+        seen_ruuvitag_devices[i][0] = '\0';
+    }
+	seen_count = 0;
+}
+
+bool is_mac_seen(const char *addr) {
+	char *space = strchr(addr, ' ');
+	if(space) *space = '\0';
+    for (int i = 0; i < seen_count; i++) {
+        if (strcmp(seen_ruuvitag_devices[i], addr) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void add_seen_mac(const char *addr) {
+    if (seen_count < RUUVITAG_COUNT) {
+        strncpy(seen_ruuvitag_devices[seen_count], addr, MAC_ADDRESS_LEN);
+        seen_ruuvitag_devices[seen_count][MAC_ADDRESS_LEN - 1] = '\0';
+        seen_count++;
+    }
 }

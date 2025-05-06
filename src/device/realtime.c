@@ -53,7 +53,7 @@ void set_system_time(const char *str, struct tm *time){
 }
 
 
-void print_current_time(){
+void print_current_time(void){
     struct timespec now_ts;
     if (clock_gettime(CLOCK_REALTIME, &now_ts) == 0) {
         struct tm *t = gmtime(&now_ts.tv_sec);
@@ -67,7 +67,7 @@ void print_current_time(){
 }
 
 
-time_t get_current_time(){
+time_t get_current_time(void){
     struct timespec tmp_ts;
     if(clock_gettime(CLOCK_REALTIME, &tmp_ts) == 0){
         return tmp_ts.tv_sec;

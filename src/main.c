@@ -11,40 +11,38 @@
 #include "errors.h"
 #include "realtime.h"
 #include "device.h"
-#include "cloud.h"
+#include "ruuvitag.h"
+#include "uart.h"
 
 // TODO: Try to shrink main function
 int main(void)
 {
 	struct tm rtc_time;
 	uint8_t err = setup(&rtc_time);
-	
-	int tmp = 0;
-	if(err == ERR_NONE){
+
+	if (err == ERR_NONE){
+		int result = 0;
+		k_mutex_init(&json_mutex);
+		json_init();
 		// Main loop
-		time_t current_time = get_current_time();
-		
-		while(1){
-			// TODO: Take first measurement
+		while (1){
 			k_msleep(1000);
 			print_current_time();
-			if(tmp == 0){
-				const char *access_token = cloud_request_access_token();
-				printk("Token: %s\n", access_token);
-				int result = cloud_publish(access_token, NULL);
-				if(result == 0) {
-					printk("SUCCESS FUCK YEAAAAH\n");
-				}
-				tmp = 1;
+			
+
+			result = start_ble_scan();
+			if (result == 0){
+				time_t timeout = get_current_time() + 300; // 5 Minute timeout
+				result = take_measurement(timeout);
+				if (result != 0)
+					printk("ERROR: Bluetooth Timeout\n");
+				stop_ble_scan();
 			}
-			// TODO: Take first measurement
-			// TODO: Save measurement
-			// TODO: Check if day has passed
-
-			// TODO: Wait for 5 minutes -> loop back to measurement
-
+			k_msleep(1000 * 300); // 5 Minute sleep
+			json_clean_data();
 		}
 	}
+
 	// Make error loop (blink led etc...)
 
 	return 0;
