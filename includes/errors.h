@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
 
 // Errors for setup
 #define ERR_NONE            0x00

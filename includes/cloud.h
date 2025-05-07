@@ -3,8 +3,8 @@
 #include "private.h"
 
 // Max size for pub message is 10MB device has 256KB RAM
-#define FULL_REQUEST_SIZE       1024 * 10
-#define REQUEST_BODY_SIZE       1024 * 8
+#define FULL_REQUEST_SIZE       1024 * 15
+#define REQUEST_BODY_SIZE       1024 * 12
 #define ACCESS_TOKEN_SIZE       1024
 
 // Access Token

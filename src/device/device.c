@@ -65,19 +65,23 @@ uint8_t setup(struct tm *time){
 	return err;
 }
 
-int take_measurement(time_t timeout){
-	time_t current_time = get_current_time();
+int take_measurement(){
 	json_data_t data;
-
+	int tries = 0;
 	while(1){
-		if(k_msgq_get(&json_msgq, &data, K_FOREVER) == 0){
+		printk("In loop\n");
+		if(k_msgq_get(&json_msgq, &data, K_NO_WAIT) == 0){
 			json_add_data(data.mac, data.temp, data.humidity, data.pressure);
 		}
 		if(seen_count == RUUVITAG_COUNT){
 			break;
 		}
-		if(current_time >= timeout) return -1;
-		k_msleep(100);
+		if(tries >= 10){
+			printk("Timeout\n");
+			return -1;
+		} 
+		tries++;
+		k_msleep(1000);
 	}
 	return 0;
 }

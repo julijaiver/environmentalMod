@@ -32,10 +32,10 @@ int main(void)
 			result = start_ble_scan();
 			if (result == 0){
 				printk("Taking measurement\n");
-				time_t timeout = get_current_time() + 10; // 10 second timeout
-				result = take_measurement(timeout);
-				if (result != 0)
+				result = take_measurement();
+				if (result == -1){
 					printk("ERROR: Bluetooth Timeout\n");
+				}
 				stop_ble_scan();
 			}
 			check_daily_data_upload();

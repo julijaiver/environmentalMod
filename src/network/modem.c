@@ -300,6 +300,7 @@ modem_status_t start_tcp_socket(void){
     if(!send_at_command("AT+CCHSSLCFG=0,0", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
     if(!send_at_command("AT+CCHOPEN=0,\"pubsub.googleapis.com\",443,2", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
     if(!send_at_command("AT+CCHOPEN?", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
+    //if(!send_at_command("AT+CCHSETOPT=0,2,0", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_TCP_START;
 
     return MODEM_SUCCESS;
 }
@@ -312,14 +313,13 @@ modem_status_t stop_tcp_socket(void){
 }
 
 modem_status_t send_tcp_post_request(const char* request, size_t len){
-    char cmd[1024 * 2];
+    char cmd[2048];
 
     snprintf(cmd, 2048, "AT+CCHSEND=0, %u", len);
     if(!send_at_command(cmd, ">", AT_RESPONSE_TIMEOUT));
     
     k_msleep(2000);
     send_at_command(request, "", AT_RESPONSE_TIMEOUT);
-
 
     return MODEM_SUCCESS;
 }

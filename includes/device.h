@@ -10,7 +10,7 @@ extern cJSON *root;
 
 uint8_t setup(struct tm *time);
 char* deleteChar(char* s, char ch);
-int take_measurement(time_t timeout);
+int take_measurement();
 int send_data(const char *data);
 void json_init(void);
 
