@@ -23,7 +23,7 @@ int main(void)
 	if (err == ERR_NONE){
 		int result = 0;
 
-		k_mutex_init(&json_mutex);
+		k_mutex_init(&json_mutex); // needed because cJSON is not multithread safe
 		json_init();
 		// Main loop
 		while (1){
@@ -32,7 +32,7 @@ int main(void)
 			result = start_ble_scan();
 			if (result == 0){
 				printk("Taking measurement\n");
-				time_t timeout = get_current_time() + 300; // 5 Minute timeout
+				time_t timeout = get_current_time() + 10; // 10 second timeout
 				result = take_measurement(timeout);
 				if (result != 0)
 					printk("ERROR: Bluetooth Timeout\n");

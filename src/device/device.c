@@ -44,7 +44,7 @@ uint8_t setup(struct tm *time){
 			err |= ERR_MODEM_INIT;
 			err |= ERR_RTC_SET_TIME;
 		} else {
-			k_msleep(1000 * 15);
+			k_msleep(1000 * 15); // Module needs some time to activate internet connection and clock sync
 			char time_str[32];
 			size_t time_str_size = sizeof(time_str); 
 			modem_get_time(time_str, time_str_size);
@@ -60,7 +60,7 @@ uint8_t setup(struct tm *time){
 
 	if(err != ERR_NONE){
 		print_errors(err);
-		handle_errors(err);
+		handle_errors(&err, time);
 	}
 	return err;
 }

@@ -13,6 +13,6 @@
 
 
 void print_errors(uint8_t err);
-void handle_errors(uint8_t err);
+void handle_errors(uint8_t *err, struct tm *time);
 
 #endif
