@@ -35,7 +35,10 @@ void handle_errors(uint8_t *err, struct tm *time) {
             }
             tries++;
         }
-        if(tries > 5) printk("Failed\n");
+        if(tries > 5){
+            printk("Failed\n");
+            return;
+        } 
     } 
     if(*err & ERR_MODEM_INIT) {
         printk("Trying to initialize Modem again...\n");
@@ -59,7 +62,24 @@ void handle_errors(uint8_t *err, struct tm *time) {
         }
         if(tries > 5) printk("Failed\n");
 
-    } 
+    } else if(*err & ERR_RTC_SET_TIME){
+        printk("Trying to sync time again\n");
+        tries = 0;
+        char time_str[32];
+        size_t time_str_size = sizeof(time_str);
+        while(tries <= 5){
+            k_msleep(1000 * 10);
+            printk(".\n");
+            modem_get_time(time_str, time_str_size);
+            if(strstr(time_str, "ERROR") == NULL){
+                set_system_time(time_str, time);
+                *err &= ~ERR_RTC_SET_TIME;
+                break;
+            }
+            tries++;
+        }
+        if(tries > 5) printk("Failed\n");
+    }
     if(*err & ERR_BLUETOOTH_SETUP) {
         printk("Trying to initialize Bluetooth again...\n");
         tries = 0;

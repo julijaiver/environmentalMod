@@ -13,6 +13,7 @@
 #include "device.h"
 #include "ruuvitag.h"
 #include "uart.h"
+#include "cJSON_helper.h"
 
 // TODO: Try to shrink main function
 int main(void)
@@ -44,6 +45,9 @@ int main(void)
 		}
 	}
 
+	if(err != ERR_NONE){
+
+	}
 	// Make error loop (blink led etc...)
 
 	return 0;
