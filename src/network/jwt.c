@@ -39,6 +39,11 @@ void jwt_init(jwt_t *jwt){
     jwt->payload.exp = jwt->payload.iat + 3600;
 }
 
+/*
+* Constructs the jwt payload to the correct format.
+* @param payload of the jwt
+* @return Malloced string
+*/
 char *jwt_construct_payload(struct payload *payload){
     if(payload == NULL){
         printk("Error: jwt payload NULL\n");
@@ -90,26 +95,13 @@ char *jwt_build(unsigned char *header, struct payload payload){
     int ret = mbedtls_pk_parse_key(&pk, private_key_pem, (strlen((char*) private_key_pem) + 1), NULL, 0, mbedtls_ctr_drbg_random, &ctr_drbg);
     if(ret != 0){
         printk("ERROR: %d\n", ret);
-        mbedtls_pk_free(&pk);
-        mbedtls_entropy_free(&entropy);
-        mbedtls_ctr_drbg_free(&ctr_drbg);
-        mbedtls_psa_crypto_free();
-        k_free(constructed_header_payload);
-        return NULL;
+        goto cleanup;
     }
    
 
     if (!mbedtls_pk_can_do(&pk, MBEDTLS_PK_RSA)) { // Check if it's an RSA key context
         printk("ERROR: Parsed key is not recognized as RSA!\n");
-        // ... handle error, free resources, return ...
-        mbedtls_pk_free(&pk);
-        mbedtls_entropy_free(&entropy);
-        mbedtls_ctr_drbg_free(&ctr_drbg);
-        mbedtls_psa_crypto_free();
-        k_free(encoded_header);
-        k_free(encoded_payload);
-        k_free(constructed_header_payload);
-        return NULL;
+        goto cleanup;
     }
 
     
@@ -119,15 +111,7 @@ char *jwt_build(unsigned char *header, struct payload payload){
     ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, 0, signature, MBEDTLS_PK_SIGNATURE_MAX_SIZE, &signature_len, mbedtls_ctr_drbg_random, &ctr_drbg);
     if (ret != 0) {
         printk("ERROR: mbedtls_pk_sign FAILED with code %d (0x%x)\n", ret, -ret);
-        
-        // Free resources allocated so far before returning failure.
-        mbedtls_pk_free(&pk);
-        mbedtls_entropy_free(&entropy);
-        mbedtls_ctr_drbg_free(&ctr_drbg);
-        mbedtls_psa_crypto_free();
-        k_free(encoded_header);
-        k_free(encoded_payload);
-        return NULL;
+        goto cleanup;
     }
     
     encoded_signature = base64_encrypt(signature, signature_len, 0);
@@ -140,8 +124,18 @@ char *jwt_build(unsigned char *header, struct payload payload){
     mbedtls_pk_free(&pk);
     mbedtls_entropy_free(&entropy);
     mbedtls_ctr_drbg_free(&ctr_drbg);
+    mbedtls_psa_crypto_free();
 
     return jwt;
-    
+
+cleanup:
+    mbedtls_pk_free(&pk);
+    mbedtls_entropy_free(&entropy);
+    mbedtls_ctr_drbg_free(&ctr_drbg);
+    mbedtls_psa_crypto_free();
+    k_free(encoded_header);
+    k_free(encoded_payload);
+    k_free(constructed_header_payload);
+    return NULL;    
     
 }

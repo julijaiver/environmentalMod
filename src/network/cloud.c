@@ -88,11 +88,7 @@ int cloud_publish(const char *access_token, const char *data){
     }
     
     k_free(full_request);
-    if(modem_ret != MODEM_SUCCESS) {
-        stop_tcp_socket();
-        return modem_ret;
-    }
-
+    
     stop_tcp_socket();
-    return 0;
+    return modem_ret;
 }

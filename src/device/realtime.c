@@ -12,6 +12,7 @@
 #include "modem.h"
 #include "device.h"
 #include "private.h"
+#include "cJSON_helper.h"
 
 
 static time_t last_sent_day = 0;

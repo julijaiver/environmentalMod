@@ -13,9 +13,9 @@ char base64_map[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
 * @param str input string to encode
 * @param len size of input
 * @param mode 0 Base64, 1 Base64URL
-* @return Encoded string
+* @return Malloced encoded string
 */
-char *base64_encrypt(unsigned char *str, size_t len, int mode){
+char *base64_encrypt(const unsigned char *str, size_t len, int mode){
     size_t output_len = ((len + 2) / 3) * 4;
     char *encoded = (char*)k_malloc(output_len + 1);
     char buf[3];

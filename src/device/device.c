@@ -16,6 +16,7 @@
 #include "realtime.h"
 #include "cloud.h"
 #include "ruuvitag.h"
+#include "cJSON_helper.h"
 
 struct k_mutex json_mutex;
 cJSON *root = NULL;
@@ -90,7 +91,7 @@ int send_data(const char *data){
 	const char *access_token = cloud_request_access_token();
 	int result = cloud_publish(access_token, data);
 	k_free(access_token);
-	if(result != 0){
+	if(result != MODEM_SUCCESS){
 		return result;
 	}
 	
