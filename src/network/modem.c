@@ -1,7 +1,7 @@
 // RTOS
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
-#include <zephyr/drivers/uart.h>
+#include <zephyr/drivers/gpio.h>
 
 // Standard libraries
 #include <stdio.h>

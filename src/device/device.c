@@ -7,6 +7,7 @@
 
 // RTOS
 #include <zephyr/kernel.h>
+#include <zephyr/drivers/gpio.h>
 
 // Includes
 #include "device.h"
@@ -18,8 +19,7 @@
 #include "ruuvitag.h"
 #include "cJSON_helper.h"
 
-struct k_mutex json_mutex;
-cJSON *root = NULL;
+static const struct gpio_dt_spec modem_gpio = GPIO_DT_SPEC_GET(MODEM_PIN_NODE, modem_pin_gpios);
 
 char* deleteChar(char* s, char ch) {
     int i, j;
@@ -36,6 +36,19 @@ char* deleteChar(char* s, char ch) {
 uint8_t setup(struct tm *time){
 	uint8_t err = ERR_NONE;
 
+	// Initialize GPIO for modem control
+	if (!device_is_ready(modem_gpio.port)) {
+		printk("Modem GPIO device not ready\n");
+		err |= ERR_MODEM_INIT;
+	}
+
+	int ret = gpio_pin_configure_dt(&modem_gpio, GPIO_OUTPUT_ACTIVE);
+	if (ret != 0) {
+		printk("Failed to configure modem GPIO: %d\n", ret);
+		err |= ERR_MODEM_INIT;
+	}
+	printk("Starting modem\n");
+	modem_pin_set(1);
 	if (uart_init() != 0) {
 		err |= ERR_UART_SETUP;
 	} else {
@@ -105,13 +118,58 @@ int send_day_data(void){
 		ret = send_data(json_string);
 		if (ret != 0){
 			printk("ERROR: Failed to publish data\n");
+		} else {
+			cJSON_free(json_string);
 		}
 	}
 	else{
 		ret = -1;
 		printk("ERROR: Failed to get JSON string\n");
 	}
-	cJSON_free(json_string);
+	
 	return ret;
 }
 
+int startup_modem(void){
+
+	// TODO: control power transistor with gpio
+	modem_pin_set(1);
+	uint8_t err = ERR_NONE;
+	
+	k_msleep(1000 * 12);
+	// TODO: initialize modem
+	modem_status_t modem_ret = initialize_modem();
+	if(modem_ret != MODEM_SUCCESS) {
+		printk("Modem initialization failed: %s (%d)\n", modem_status_to_string(modem_ret), modem_ret);
+		err |= ERR_MODEM_INIT;
+
+		printk("Trying to initialize Modem again...\n");
+        int tries = 0;
+        while(tries <= 5){
+            k_msleep(1000 * 10);
+            printk(".\n");
+            if(initialize_modem() == MODEM_SUCCESS){
+                printk("Success\n");
+                err &= ~ERR_MODEM_INIT;
+                break;
+            }
+            tries++;
+        }
+        if(tries > 5){
+			printk("Failed\n");
+			return -1;
+		}
+
+	}
+	k_msleep(1000 * 15); // Module needs some time to activate internet connection
+	
+	return 0;
+}
+
+void modem_power_off(void){
+	modem_pin_set(0);
+}
+
+void modem_pin_set(int state){
+	gpio_pin_set_dt(&modem_gpio, state);
+}

@@ -4,6 +4,8 @@
 #include "cJSON_helper.h"
 #include "ruuvitag.h"
 
+struct k_mutex json_mutex;
+cJSON *root = NULL;
 
 void json_init(void){
 	k_mutex_lock(&json_mutex, K_FOREVER);

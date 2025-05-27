@@ -75,14 +75,15 @@ void check_daily_data_upload(void){
         struct tm *t = gmtime(&now_ts.tv_sec);
         printk("HOUR: %d, SENDING HOUR: %d\n", t->tm_hour, TIME_TO_SEND);
         if(t->tm_hour == TIME_TO_SEND && t->tm_mday != last_sent_day){
+            startup_modem();
             send_day_data();
             last_sent_day = t->tm_mday;
             json_clean_data();
+            modem_power_off();
         } 
     } else {
         printk("Not time to send\n");
     } 
-
 }
 
 

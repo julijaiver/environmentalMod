@@ -15,11 +15,13 @@
 #include "uart.h"
 #include "cJSON_helper.h"
 
-// TODO: Try to shrink main function
+
 int main(void)
 {
+	printk("Starting up\n");
 	struct tm rtc_time;
 	uint8_t err = setup(&rtc_time);
+	
 
 	if (err == ERR_NONE){
 		int result = 0;
