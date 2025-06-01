@@ -4,6 +4,7 @@
 
 // RTOS
 #include <zephyr/kernel.h>
+#include <zephyr/drivers/gpio.h>
 
 // Includes
 #include "errors.h"
@@ -11,22 +12,42 @@
 #include "modem.h"
 #include "ruuvitag.h"
 #include "realtime.h"
+#include "device.h"
 
-void print_errors(uint8_t err){
+
+
+void print_errors(uint16_t err){
     if(err == ERR_NONE) printk("Initilization successfull!\n");
     if(err & ERR_UART_SETUP) printk("UART setup error!\n");
     if(err & ERR_MODEM_INIT) printk("Modem setup error\n");
     if(err & ERR_BLUETOOTH_SETUP) printk("Bluetooth setup error!\n");
     if(err & ERR_RTC_SET_TIME) printk("RTC set time error!\n");
+    if(err & ERR_MODEM_GPIO) printk("MODEM GPIO PIN error!\n");
 }
 
-void handle_errors(uint8_t *err, struct tm *time) {
+void handle_errors(uint16_t *err, struct tm *time) {
     int tries = 0;
+
+    if (*err & ERR_MODEM_GPIO) {
+        printk("Checking GPIO setup\n");
+        while(tries < MAX_TRIES){
+            printk(".\n");
+            k_msleep(RETRY_DELAY_MS);
+            if(gpio_status()){
+                *err &= ~ERR_MODEM_GPIO;
+                printk("Success\n");
+                break;
+            }
+            tries++;
+        }
+        if(tries >= MAX_TRIES) printk("Failed\n");
+	}
 
     if(*err & ERR_UART_SETUP){
         printk("Trying to initialize UART again...\n");
-        while(tries <= 5){
-            k_msleep(1000 * 10);
+        tries = 0;
+        while(tries < MAX_TRIES){
+            k_msleep(RETRY_DELAY_MS);
             printk(".\n");
             if(uart_init() == 0){
                 printk("Success\n");
@@ -35,16 +56,17 @@ void handle_errors(uint8_t *err, struct tm *time) {
             }
             tries++;
         }
-        if(tries > 5){
+        if(tries >= MAX_TRIES){
             printk("Failed\n");
-            return;
+            return; // other systems depend on UART
         } 
     } 
+
     if(*err & ERR_MODEM_INIT) {
         printk("Trying to initialize Modem again...\n");
         tries = 0;
-        while(tries <= 5){
-            k_msleep(1000 * 10);
+        while(tries < MAX_TRIES){
+            k_msleep(RETRY_DELAY_MS);
             printk(".\n");
             if(initialize_modem() == MODEM_SUCCESS){
                 printk("Success\n");
@@ -60,15 +82,16 @@ void handle_errors(uint8_t *err, struct tm *time) {
             }
             tries++;
         }
-        if(tries > 5) printk("Failed\n");
+        if(tries >= MAX_TRIES) printk("Failed\n");
+    } 
 
-    } else if(*err & ERR_RTC_SET_TIME){
+    if(*err & ERR_RTC_SET_TIME){
         printk("Trying to sync time again\n");
         tries = 0;
         char time_str[32];
         size_t time_str_size = sizeof(time_str);
-        while(tries <= 5){
-            k_msleep(1000 * 10);
+        while(tries < MAX_TRIES){
+            k_msleep(RETRY_DELAY_MS);
             printk(".\n");
             modem_get_time(time_str, time_str_size);
             if(strstr(time_str, "ERROR") == NULL){
@@ -78,13 +101,14 @@ void handle_errors(uint8_t *err, struct tm *time) {
             }
             tries++;
         }
-        if(tries > 5) printk("Failed\n");
+        if(tries >= MAX_TRIES) printk("Failed\n");
     }
+
     if(*err & ERR_BLUETOOTH_SETUP) {
         printk("Trying to initialize Bluetooth again...\n");
         tries = 0;
-        while(tries <= 5){
-            k_msleep(1000 * 10);
+        while(tries < MAX_TRIES){
+            k_msleep(RETRY_DELAY_MS);
             printk(".\n");
             
             if(activate_bluetooth() == 0){
@@ -92,9 +116,8 @@ void handle_errors(uint8_t *err, struct tm *time) {
                 *err &= ~ERR_BLUETOOTH_SETUP;
                 break;
             }
-            
             tries++;
         }
-        if(tries > 5) printk("Failed\n");
+        if(tries >= MAX_TRIES) printk("Failed\n");
     }
 }

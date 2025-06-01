@@ -33,22 +33,23 @@ char* deleteChar(char* s, char ch) {
     return s;
 }
 
-uint8_t setup(struct tm *time){
-	uint8_t err = ERR_NONE;
+uint16_t setup(struct tm *time){
+	uint16_t err = ERR_NONE;
 
 	// Initialize GPIO for modem control
 	if (!device_is_ready(modem_gpio.port)) {
 		printk("Modem GPIO device not ready\n");
-		err |= ERR_MODEM_INIT;
+		err |= ERR_MODEM_GPIO;
 	}
 
 	int ret = gpio_pin_configure_dt(&modem_gpio, GPIO_OUTPUT_ACTIVE);
 	if (ret != 0) {
 		printk("Failed to configure modem GPIO: %d\n", ret);
-		err |= ERR_MODEM_INIT;
+		err |= ERR_MODEM_GPIO;
 	}
 	printk("Starting modem\n");
 	modem_pin_set(1);
+	k_msleep(1000*15);
 	if (uart_init() != 0) {
 		err |= ERR_UART_SETUP;
 	} else {
@@ -58,12 +59,13 @@ uint8_t setup(struct tm *time){
 			err |= ERR_MODEM_INIT;
 			err |= ERR_RTC_SET_TIME;
 		} else {
-			k_msleep(1000 * 15); // Module needs some time to activate internet connection and clock sync
+			k_msleep(1000 * 12); // Module needs some time to activate internet connection and clock sync
 			char time_str[32];
 			size_t time_str_size = sizeof(time_str); 
 			modem_get_time(time_str, time_str_size);
 			if(strstr(time_str, "ERROR") == NULL){
 				set_system_time(time_str, time);
+				modem_power_off();
 			} else {
 				err |= ERR_RTC_SET_TIME;
 			}
@@ -74,7 +76,7 @@ uint8_t setup(struct tm *time){
 
 	if(err != ERR_NONE){
 		print_errors(err);
-		handle_errors(&err, time);
+		//handle_errors(&err, time);
 	}
 	return err;
 }
@@ -84,18 +86,23 @@ int take_measurement(){
 	int tries = 0;
 	while(1){
 		printk("In loop\n");
-		if(k_msgq_get(&json_msgq, &data, K_NO_WAIT) == 0){
-			json_add_data(data.mac, data.temp, data.humidity, data.pressure);
-		}
 		if(seen_count == RUUVITAG_COUNT){
 			break;
 		}
 		if(tries >= 10){
 			printk("Timeout\n");
+			while(k_msgq_get(&json_msgq, &data, K_NO_WAIT) == 0){
+				printk("Got: %s\n", data.mac);
+				json_add_data(data.mac, data.temp, data.humidity, data.pressure);
+			}
 			return -1;
 		} 
 		tries++;
 		k_msleep(1000);
+	}
+	while(k_msgq_get(&json_msgq, &data, K_NO_WAIT) == 0){
+			printk("Got: %s\n", data.mac);
+			json_add_data(data.mac, data.temp, data.humidity, data.pressure);
 	}
 	return 0;
 }
@@ -132,16 +139,14 @@ int send_day_data(void){
 
 int startup_modem(void){
 
-	// TODO: control power transistor with gpio
 	modem_pin_set(1);
 	uint8_t err = ERR_NONE;
 	
-	k_msleep(1000 * 12);
-	// TODO: initialize modem
+	k_msleep(1000 * 20);
+
 	modem_status_t modem_ret = initialize_modem();
 	if(modem_ret != MODEM_SUCCESS) {
 		printk("Modem initialization failed: %s (%d)\n", modem_status_to_string(modem_ret), modem_ret);
-		err |= ERR_MODEM_INIT;
 
 		printk("Trying to initialize Modem again...\n");
         int tries = 0;
@@ -150,7 +155,6 @@ int startup_modem(void){
             printk(".\n");
             if(initialize_modem() == MODEM_SUCCESS){
                 printk("Success\n");
-                err &= ~ERR_MODEM_INIT;
                 break;
             }
             tries++;
@@ -159,7 +163,6 @@ int startup_modem(void){
 			printk("Failed\n");
 			return -1;
 		}
-
 	}
 	k_msleep(1000 * 15); // Module needs some time to activate internet connection
 	
@@ -172,4 +175,8 @@ void modem_power_off(void){
 
 void modem_pin_set(int state){
 	gpio_pin_set_dt(&modem_gpio, state);
+}
+
+bool gpio_status(void){
+	return device_is_ready(modem_gpio.port);
 }

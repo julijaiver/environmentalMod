@@ -179,17 +179,21 @@ void reset_seen_devices() {
 bool is_mac_seen(const char *addr) {
 	char *space = strchr(addr, ' ');
 	if(space) *space = '\0';
+	printk("Looking for %s in list:\n", addr);
     for (int i = 0; i < seen_count; i++) {
+		printk("%s\n", seen_ruuvitag_devices[i]);
         if (strcmp(seen_ruuvitag_devices[i], addr) == 0) {
             return true;
         }
     }
+	printk("\n");
     return false;
 }
 
 void add_seen_mac(const char *addr) {
     if (seen_count < RUUVITAG_COUNT) {
         strncpy(seen_ruuvitag_devices[seen_count], addr, MAC_ADDRESS_LEN);
+		printk("Added: %s\n\n", addr);
         seen_ruuvitag_devices[seen_count][MAC_ADDRESS_LEN - 1] = '\0';
         seen_count++;
     }

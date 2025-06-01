@@ -16,41 +16,36 @@
 #include "cJSON_helper.h"
 
 
-int main(void)
-{
-	printk("Starting up\n");
+int main(void){
 	struct tm rtc_time;
-	uint8_t err = setup(&rtc_time);
+	uint16_t err = setup(&rtc_time);
 	
+	while(err != ERR_NONE){
+		printk("Error loop\n");
+		k_msleep(ERROR_LOOP_SLEEP);
+		handle_errors(&err, &rtc_time);
+	}
 
-	if (err == ERR_NONE){
-		int result = 0;
+	int result = 0;
 
-		k_mutex_init(&json_mutex); // needed because cJSON is not multithread safe
-		json_init();
-		// Main loop
-		while (1){
-			print_current_time();
+	k_mutex_init(&json_mutex); // needed because cJSON is not multithread safe
+	json_init();
+	// Main loop
+	while (1){
+		print_current_time();
 
-			result = start_ble_scan();
-			if (result == 0){
-				printk("Taking measurement\n");
-				result = take_measurement();
-				if (result == -1){
-					printk("ERROR: Bluetooth Timeout\n");
-				}
-				stop_ble_scan();
+		result = start_ble_scan();
+		if (result == 0){
+			result = take_measurement();
+			if (result == -1){
+				printk("ERROR: Bluetooth Timeout\n");
 			}
-			check_daily_data_upload();
-			printk("Going to sleep\n");
-			k_msleep(1000 * 300); // 5 Minute sleep
+			stop_ble_scan();
 		}
+		check_daily_data_upload();
+		printk("Going to sleep\n");
+		k_msleep(MEASURE_CYCLE_SLEEP); // 5 Minute sleep
 	}
-
-	if(err != ERR_NONE){
-
-	}
-	// Make error loop (blink led etc...)
 
 	return 0;
 }

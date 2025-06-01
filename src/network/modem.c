@@ -82,6 +82,7 @@ modem_status_t initialize_modem(void)
 			return MODEM_ERR_SIM_PIN;
 		}
 	}
+    k_msleep(1000);
 	/*
 	// Set network registration format
 	if (!send_at_command("AT+CREG=2", "OK", AT_RESPONSE_TIMEOUT))

@@ -14,7 +14,7 @@
 #define MD_TYPE				0xff
 #define BT_ADDR_LE_STR_LEN	30
 #define MAC_ADDRESS_LEN		18
-#define RUUVITAG_COUNT		2
+#define RUUVITAG_COUNT		5
 
 #define JSON_QUEUE_SIZE 10
 typedef struct {
@@ -26,7 +26,7 @@ typedef struct {
 
 extern struct k_msgq json_msgq;
 
-static const char *ruuvitag_devices[RUUVITAG_COUNT] = {"DD:83:3D:A4:CE:C6", "DD:42:FA:12:2A:CD"};
+static const char *ruuvitag_devices[RUUVITAG_COUNT] = {"DD:83:3D:A4:CE:C6", "DD:42:FA:12:2A:CD", "DB:C3:58:D9:03:70", "E2:70:D7:96:45:18", "EE:DF:9F:BA:8D:49"};
 static char seen_ruuvitag_devices[RUUVITAG_COUNT][MAC_ADDRESS_LEN];
 extern int seen_count;
 
