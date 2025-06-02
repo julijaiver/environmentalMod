@@ -120,4 +120,5 @@ void handle_errors(uint16_t *err, struct tm *time) {
         }
         if(tries >= MAX_TRIES) printk("Failed\n");
     }
+    modem_power_off();
 }

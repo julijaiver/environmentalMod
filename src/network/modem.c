@@ -289,6 +289,10 @@ void modem_get_time(char *buffer, size_t buffer_size){
     }
 }
 
+void modem_shutdown(void){
+    send_at_command("AT+CPOF", "OK", AT_RESPONSE_TIMEOUT);
+}
+
 modem_status_t start_tcp_socket(void){
     if(!send_at_command("AT+NETOPEN?", "+NETOPEN: 1", AT_RESPONSE_TIMEOUT)){
         if(!send_at_command("AT+NETOPEN", "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_PDP_START;

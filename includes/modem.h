@@ -56,6 +56,6 @@ modem_status_t start_tcp_socket(void);
 modem_status_t stop_tcp_socket(void);
 modem_status_t send_tcp_post_request(const char* request, size_t len);
 void modem_get_time(char *buffer, size_t buffer_size);
-
+void modem_shutdown(void);
 
 #endif

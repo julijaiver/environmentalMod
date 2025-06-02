@@ -140,8 +140,6 @@ int send_day_data(void){
 int startup_modem(void){
 
 	modem_pin_set(1);
-	uint8_t err = ERR_NONE;
-	
 	k_msleep(1000 * 20);
 
 	modem_status_t modem_ret = initialize_modem();
@@ -170,6 +168,8 @@ int startup_modem(void){
 }
 
 void modem_power_off(void){
+	modem_shutdown();
+	k_msleep(1000 * 10);
 	modem_pin_set(0);
 }
 
