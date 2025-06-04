@@ -13,8 +13,8 @@
 #include "uart.h"
 #include "cloud.h"
 #include "private.h"
-#include "cJSON.h"
 #include "device.h"
+#include "cJSON.h"
 
 const char *modem_status_to_string(modem_status_t status) {
     switch (status) {
@@ -83,7 +83,7 @@ modem_status_t initialize_modem(void)
 		}
 	}
     k_msleep(1000);
-	/*
+	/* 
 	// Set network registration format
 	if (!send_at_command("AT+CREG=2", "OK", AT_RESPONSE_TIMEOUT))
 		return MODEM_ERR_CREG_SET;
@@ -99,7 +99,7 @@ modem_status_t initialize_modem(void)
 	// Activate PDP context
 	if (!send_at_command("AT+CGACT=1,1", "OK", AT_RESPONSE_TIMEOUT)) 
 		return MODEM_ERR_PDP_ACTIVATE;
-	*/
+	 */
 
 	return MODEM_SUCCESS;
 }
@@ -154,9 +154,6 @@ modem_status_t read_http_response(char *res){
         i++;
     }
     
-
-    
-   // printk("FULL RESPONSE: \n%s\n", deleteChar(full_response, '\n'));
     cJSON *response_json = cJSON_Parse(deleteChar(full_response, '\n'));
     k_free(full_response);
     
@@ -219,7 +216,6 @@ void modem_get_time(char *buffer, size_t buffer_size){
     print_uart(cmd);
     print_uart("\r\n");
 
-    
     while ((ret = k_msgq_get(&uart_msgq, response, AT_RESPONSE_TIMEOUT)) == 0) {
         
         printk("%s\n", response);
@@ -323,8 +319,8 @@ modem_status_t send_tcp_post_request(const char* request, size_t len){
     snprintf(cmd, 2048, "AT+CCHSEND=0, %u", len);
     if(!send_at_command(cmd, ">", AT_RESPONSE_TIMEOUT));
     
-    k_msleep(2000);
-    send_at_command(request, "", AT_RESPONSE_TIMEOUT);
+    k_msleep(100);
+    send_at_command(request, "OK", AT_RESPONSE_TIMEOUT);
 
     return MODEM_SUCCESS;
 }

@@ -13,6 +13,7 @@
 
 K_MSGQ_DEFINE(json_msgq, sizeof(json_data_t), JSON_QUEUE_SIZE, 4);
 int seen_count = 0;
+const char *ruuvitag_devices[RUUVITAG_COUNT] = {"DD:83:3D:A4:CE:C6", "DD:42:FA:12:2A:CD", "DB:C3:58:D9:03:70", "E2:70:D7:96:45:18", "EE:DF:9F:BA:8D:49"};
 
 void parse_ruuvitag(uint8_t *data_ptr){
 	uint8_t device_id[7]; // Device MAC-address
@@ -67,17 +68,15 @@ void parse_ruuvitag(uint8_t *data_ptr){
 	snprintf(mac, 20, "%02X:%02X:%02X:%02X:%02X:%02X", device_id[0], device_id[1], device_id[2], device_id[3], device_id[4], device_id[5]);
 	json_data_t data;
 	strncpy(data.mac, mac, sizeof(data.mac));
+
 	data.mac[sizeof(data.mac) - 1] = '\0';
 	data.temp = temperature;
 	data.humidity = humidity;
 	data.pressure = pressure;
+
 	if(k_msgq_put(&json_msgq, &data, K_NO_WAIT) != 0){
 		printk("Failed to que JSON data\n");
 	}
-
-	/* printk("DEVICE: %02X:%02X:%02X:%02X:%02X:%02X | Temperature: %.2f | Humidity: %.2f | Pressure: %.2f\n", device_id[0], device_id[1], device_id[2], device_id[3],
-		device_id[4], device_id[5], (float)temperature, (float)humidity, (float)pressure); */
-
 }
 
 void scan_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type, struct net_buf_simple *ad){

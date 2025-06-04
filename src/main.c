@@ -13,7 +13,6 @@
 #include "device.h"
 #include "ruuvitag.h"
 #include "uart.h"
-#include "cJSON_helper.h"
 
 
 int main(void){
@@ -27,9 +26,6 @@ int main(void){
 	}
 
 	int result = 0;
-
-	k_mutex_init(&json_mutex); // needed because cJSON is not multithread safe
-	json_init();
 	// Main loop
 	while (1){
 		print_current_time();
@@ -37,11 +33,13 @@ int main(void){
 		result = start_ble_scan();
 		if (result == 0){
 			result = take_measurement();
+			
 			if (result == -1){
 				printk("ERROR: Bluetooth Timeout\n");
 			}
-			stop_ble_scan();
 		}
+		stop_ble_scan();
+		
 		check_daily_data_upload();
 		printk("Going to sleep\n");
 		k_msleep(MEASURE_CYCLE_SLEEP); // 5 Minute sleep

@@ -17,9 +17,10 @@
 #include "realtime.h"
 #include "cloud.h"
 #include "ruuvitag.h"
-#include "cJSON_helper.h"
 
 static const struct gpio_dt_spec modem_gpio = GPIO_DT_SPEC_GET(MODEM_PIN_NODE, modem_pin_gpios);
+static SensorData sensors[RUUVITAG_COUNT];
+static char json_buf[40960];
 
 char* deleteChar(char* s, char ch) {
     int i, j;
@@ -76,8 +77,9 @@ uint16_t setup(struct tm *time){
 
 	if(err != ERR_NONE){
 		print_errors(err);
-		//handle_errors(&err, time);
 	}
+
+	init_sensors();
 	return err;
 }
 
@@ -93,7 +95,7 @@ int take_measurement(){
 			printk("Timeout\n");
 			while(k_msgq_get(&json_msgq, &data, K_NO_WAIT) == 0){
 				printk("Got: %s\n", data.mac);
-				json_add_data(data.mac, data.temp, data.humidity, data.pressure);
+				json_data_add(sensors, data.mac, data.temp, data.humidity, data.pressure);
 			}
 			return -1;
 		} 
@@ -101,37 +103,101 @@ int take_measurement(){
 		k_msleep(1000);
 	}
 	while(k_msgq_get(&json_msgq, &data, K_NO_WAIT) == 0){
-			printk("Got: %s\n", data.mac);
-			json_add_data(data.mac, data.temp, data.humidity, data.pressure);
+		printk("Got: %s\n", data.mac);
+		json_data_add(sensors, data.mac, data.temp, data.humidity, data.pressure);
 	}
 	return 0;
 }
 
-int send_data(const char *data){
-	const char *access_token = cloud_request_access_token();
-	int result = cloud_publish(access_token, data);
-	k_free(access_token);
-	if(result != MODEM_SUCCESS){
-		return result;
+int find_sensor(SensorData *sensors, const char *mac){
+	for(int i = 0; i < RUUVITAG_COUNT; i++){
+		if(strcmp(sensors[i].mac, mac) == 0){
+			return i;
+		}
 	}
+	return -1;
+}
+
+void init_sensors(void){
+	for(int i = 0; i < RUUVITAG_COUNT; i++){
+		strncpy(sensors[i].mac, ruuvitag_devices[i], sizeof(sensors[i].mac));
+		sensors[i].mac[sizeof(sensors[i].mac) - 1] = '\0';
+	}
+}
+
+void json_data_add(SensorData *sensors, const char *mac, float temperature, float humidity, float pressure){
+	int idx = find_sensor(sensors, mac);
+	if(idx == -1){
+		printk("Sensor not found\n");
+		return;
+	}
+	
+	SensorData *sensor = &sensors[idx];
+	if(sensor->measure_count >= MAX_MEASUREMENTS) return;
+
+	int i = sensor->measure_count;
+	sensor->temperature[i] = temperature;
+	sensor->humidity[i] = humidity;
+	sensor->pressure[i] = pressure;
+	sensor->measure_count++; 
+}
+
+char* json_data_string(int count) {
+    int offset = 0;
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "{");
+
+    
+    if (offset > 1) offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, ",");
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "\"%s\":{", sensors[count].mac);
+
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "\"temperature\":[");
+    for (int i = 0; i < sensors[count].measure_count; i++) {
+        offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "%.2f%s",
+        sensors[count].temperature[i], (i < sensors[count].measure_count - 1) ? "," : "]");
+    }
+
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, ",\"humidity\":[");
+    for (int i = 0; i < sensors[count].measure_count; i++) {
+        offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "%.2f%s",
+        sensors[count].humidity[i], (i < sensors[count].measure_count - 1) ? "," : "]");
+    }
+
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, ",\"pressure\":[");
+    for (int i = 0; i < sensors[count].measure_count; i++) {
+        offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "%.2f%s",
+        sensors[count].pressure[i], (i < sensors[count].measure_count - 1) ? "," : "]");
+    }
+
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "}");
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "}");
+
+    return json_buf;
+}
+
+int send_data(void){
+	const char *access_token = cloud_request_access_token();
+	for(int i = 0; i < RUUVITAG_COUNT; i++){
+		const char *data = json_data_string(i);
+		int result = cloud_publish(access_token, data);
+
+		if(result != MODEM_SUCCESS){
+			return result;
+		}
+	}
+	//int result = cloud_publish(access_token, data);
+	k_free(access_token);
 	
 	return 0;
 }
 
 int send_day_data(void){
 	int ret = 0;
-	char *json_string = json_get_data_string();
-	if (json_string != NULL){
-		ret = send_data(json_string);
-		if (ret != 0){
-			printk("ERROR: Failed to publish data\n");
-		} else {
-			cJSON_free(json_string);
-		}
-	}
-	else{
-		ret = -1;
-		printk("ERROR: Failed to get JSON string\n");
+	
+	ret = send_data();
+	if (ret != 0){
+		printk("ERROR: Failed to publish data\n");
+	} else {
+		clean_data();
 	}
 	
 	return ret;
@@ -179,4 +245,13 @@ void modem_pin_set(int state){
 
 bool gpio_status(void){
 	return device_is_ready(modem_gpio.port);
+}
+
+void clean_data(){
+	for (int i = 0; i < RUUVITAG_COUNT; i++) {
+        memset(sensors[i].temperature, 0, sizeof(sensors[i].temperature));
+        memset(sensors[i].humidity, 0, sizeof(sensors[i].humidity));
+        memset(sensors[i].pressure, 0, sizeof(sensors[i].pressure));
+        sensors[i].measure_count = 0;
+    }
 }

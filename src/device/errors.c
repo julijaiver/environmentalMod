@@ -91,6 +91,7 @@ void handle_errors(uint16_t *err, struct tm *time) {
         char time_str[32];
         size_t time_str_size = sizeof(time_str);
         while(tries < MAX_TRIES){
+            initialize_modem();
             k_msleep(RETRY_DELAY_MS);
             printk(".\n");
             modem_get_time(time_str, time_str_size);

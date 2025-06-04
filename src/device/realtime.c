@@ -12,7 +12,6 @@
 #include "modem.h"
 #include "device.h"
 #include "private.h"
-#include "cJSON_helper.h"
 
 
 static time_t last_sent_day = 0;
@@ -75,10 +74,20 @@ void check_daily_data_upload(void){
         struct tm *t = gmtime(&now_ts.tv_sec);
         printk("HOUR: %d, SENDING HOUR: %d\n", t->tm_hour, TIME_TO_SEND);
         if(t->tm_hour == TIME_TO_SEND && t->tm_mday != last_sent_day){
-            startup_modem();
-            send_day_data();
-            last_sent_day = t->tm_mday;
-            json_clean_data();
+            int tries = 0;
+            int res = -1;
+            while(res != 0 && tries <= 10){
+                startup_modem();
+                res = send_day_data(); 
+                tries++;
+                k_msleep(5000);
+            }
+            if(res == 0) {
+                last_sent_day = t->tm_mday;
+                clean_data();
+            } else {
+                printk("Failed to send\n");
+            }
             modem_power_off();
         } 
     } else {

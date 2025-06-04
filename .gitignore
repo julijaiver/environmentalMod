@@ -8,3 +8,4 @@ includes/rsa.der
 includes/*.json
 documentation/
 debug/
+backup/
