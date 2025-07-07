@@ -1,5 +1,7 @@
 # Energy-Efficient IoT module with nRF52840
 
+**BLE/RUUVITAG VERSION**
+
 This is a cloud-connected, low-power embedded system designed to collect environmental data from **RuuviTags (via BLE)**. It transmits the data securely over a **4G CAT-1 LTE module (A7670G)** to **Google Cloud Pub/Sub**.
 
 ## Current data location
