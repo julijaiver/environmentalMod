@@ -9,3 +9,4 @@ includes/*.json
 documentation/
 debug/
 backup/
+tmp.md

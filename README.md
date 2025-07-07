@@ -1,11 +1,14 @@
 # Energy-Efficient IoT module with nRF52840
 
-This is a cloud-connected, low-power embedded system designed to collect environmental data from **RuuviTags (via BLE)** and **TEROS 12 soil sensors (via SDI-12, later changed to bluetooth)**. It transmits the data securely over a **4G CAT-1 LTE module (A7670G)** to **Google Cloud Pub/Sub**.
+This is a cloud-connected, low-power embedded system designed to collect environmental data from **RuuviTags (via BLE)**. It transmits the data securely over a **4G CAT-1 LTE module (A7670G)** to **Google Cloud Pub/Sub**.
+
+## Current data location
+
+The firmware that devices have send the data daily to Metropolias Google Cloud, to the project **prj-mtp-jaak-leht-ufl** and Pub/Sub topic **ymparistomoduuli**. The messages can be looked at Google Cloud console on subscription **ymparistomoduuli-sub** or by fetching them using the python script provided to project leader Jaakko and assistant Martti.
 
 ## Features
 
 - **BLE scanner for RuuviTags** (temperature, humidity, pressure)
-- **SDI-12 communication** with TEROS 12 soil sensors (moisture, temperature, EC)
 - **4G connectivity** using A7670G module with AT+HTTP commands
 - **Data publishing to Google Cloud Pub/Sub** over HTTPS (via AT commands)
 - **Energy-optimized design** for remote, battery-powered deployments
@@ -17,9 +20,8 @@ This is a cloud-connected, low-power embedded system designed to collect environ
 |------------------|-------------------------------------------------|
 | nRF52840 Dongle  | BLE-capable MCU with USB                        |
 | A7670G Module    | 4G LTE CAT-1 modem, AT-command interface        |
-| TEROS 12         | Soil sensor using SDI-12 protocol               |
 | RuuviTags        | BLE beacons for environmental sensing           |
-| Power Source     | Powerbank                                       |
+| Power Source     | 2x 1850 3500mAh Lithium-Ion batteries           |
 
 ## Architecture
 
@@ -29,7 +31,7 @@ This is a cloud-connected, low-power embedded system designed to collect environ
 └────────────┘                 │
                                ▼
                          ┌────────────┐        ┌────────────────────┐
-TEROS 12 ◀── SDI-12 ───▶│  nRF52840  │ ────▶ │    A7670G Modem    │
+                         │  nRF52840  │ ────▶ │    A7670G Modem    │
                          │  (Zephyr)  │        └────────┬───────────┘
                          └────────────┘                 ▼
                                                Google Cloud Pub/Sub
