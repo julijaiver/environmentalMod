@@ -23,7 +23,8 @@
 #define JWT_AUDIENCE        "https://oauth2.googleapis.com/token"
 #define JWT_SCOPE           "https://www.googleapis.com/auth/pubsub"
 
-#define TIME_TO_SEND        12 // Hour for when to send data
+#define TIME_TO_SEND        12 // Hour of day to send data if using daily send mode
+#define SENDING_INTERVAL       12 // Hours between data sends if using time internal send mode
 
 static const char *private_key_pem = "-----BEGIN PRIVATE KEY----- -----END PRIVATE KEY-----";
 

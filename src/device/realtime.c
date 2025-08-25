@@ -13,7 +13,8 @@
 #include "device.h"
 #include "private.h"
 
-
+static time_t last_upload_time = 0;
+static int upload_interval_seconds = SENDING_INTERVAL * 3600; // should replace with macro later
 static time_t last_sent_day = 0;
 
 void set_system_time(const char *str, struct tm *time){
@@ -78,7 +79,7 @@ void check_daily_data_upload(void){
             int res = -1;
             while(res != 0 && tries <= 10){
                 startup_modem();
-                res = send_day_data(); 
+                res = send_scheduled_data(); 
                 tries++;
                 k_msleep(5000);
             }
@@ -93,6 +94,40 @@ void check_daily_data_upload(void){
     } else {
         printk("Not time to send\n");
     } 
+}
+
+
+//Mimic the original function to avoid new edge cases
+void check_scheduled_upload(void) {
+    struct timespec now_ts;
+    if(clock_gettime(CLOCK_REALTIME, &now_ts) == 0) {
+        time_t current_time = now_ts.tv_sec;
+        // Check if enough time has passed since last upload or if it's the first upload
+        if((current_time - last_upload_time >= upload_interval_seconds) || (last_upload_time == 0) ) {
+            struct tm *t = gmtime(&current_time);
+            printk("Time for upload. Last: %ld, Current: %ld, Interval: %d\n", 
+                   last_upload_time, current_time, upload_interval_seconds);
+            
+            int tries = 0;
+            int res = -1;
+            while(res != 0 && tries <= 10) {
+                startup_modem();
+                res = send_scheduled_data();
+                tries++;
+                if(res!=0){k_msleep(5000);} //Since modem is the energy hog, might as well end loop sooner if done
+            }
+            
+            if(res == 0) {
+                last_upload_time = current_time;
+                //clean_data(); //duplicate function call, already done in send_scheduled_data if successful
+            } else {
+                printk("Failed to send.\n");
+            }
+            modem_power_off();
+        }
+    } else {
+        printk("Clock error\n");
+    }
 }
 
 

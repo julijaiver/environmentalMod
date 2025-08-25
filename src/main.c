@@ -40,7 +40,8 @@ int main(void){
 		}
 		stop_ble_scan();
 		
-		check_daily_data_upload();
+		//check_daily_data_upload();  //Uncomment to use the older daily method
+		check_scheduled_upload();  
 		printk("Going to sleep\n");
 		k_msleep(MEASURE_CYCLE_SLEEP); // 5 Minute sleep
 	}

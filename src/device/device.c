@@ -21,6 +21,7 @@
 static const struct gpio_dt_spec modem_gpio = GPIO_DT_SPEC_GET(MODEM_PIN_NODE, modem_pin_gpios);
 static SensorData sensors[RUUVITAG_COUNT];
 static char json_buf[40960];
+static uint16_t batch_number = 0; // keeps track of measurement batches within an upload. This lets you separate which measurements came in which measurement cycle.
 
 char* deleteChar(char* s, char ch) {
     int i, j;
@@ -97,6 +98,7 @@ int take_measurement(){
 				printk("Got: %s\n", data.mac);
 				json_data_add(sensors, data.mac, data.temp, data.humidity, data.pressure);
 			}
+			batch_number++; // Partial or empty batches are still valid for record keeping
 			return -1;
 		} 
 		tries++;
@@ -106,6 +108,7 @@ int take_measurement(){
 		printk("Got: %s\n", data.mac);
 		json_data_add(sensors, data.mac, data.temp, data.humidity, data.pressure);
 	}
+	batch_number++; // Increment batch number for next upload
 	return 0;
 }
 
@@ -128,7 +131,7 @@ void init_sensors(void){
 void json_data_add(SensorData *sensors, const char *mac, float temperature, float humidity, float pressure){
 	int idx = find_sensor(sensors, mac);
 	if(idx == -1){
-		printk("Sensor not found\n");
+		printk("Sensor not found\n"); // This should really trigger a separate pub/sub post upon next report somehow. All the printks should be replaced with a proper logging mechanism.
 		return;
 	}
 	
@@ -141,7 +144,7 @@ void json_data_add(SensorData *sensors, const char *mac, float temperature, floa
 	sensor->pressure[i] = pressure;
 	sensor->measure_count++; 
 }
-
+/*
 char* json_data_string(int count) {
     int offset = 0;
     offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "{");
@@ -150,29 +153,71 @@ char* json_data_string(int count) {
     if (offset > 1) offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, ",");
     offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "\"%s\":{", sensors[count].mac);
 
+	// Quick and dirty batch number tracking
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "\"batch_number\":%u,", batch_number);
+
+	
     offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "\"temperature\":[");
     for (int i = 0; i < sensors[count].measure_count; i++) {
         offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "%.2f%s",
-        sensors[count].temperature[i], (i < sensors[count].measure_count - 1) ? "," : "]");
+        sensors[count].temperature[i], (i < sensors[count].measure_count - 1) ? "," : "");
     }
+	offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "]"); // moved bracket termination here to prevent edge case issues with count=0
 
     offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, ",\"humidity\":[");
     for (int i = 0; i < sensors[count].measure_count; i++) {
         offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "%.2f%s",
-        sensors[count].humidity[i], (i < sensors[count].measure_count - 1) ? "," : "]");
+        sensors[count].humidity[i], (i < sensors[count].measure_count - 1) ? "," : "");
     }
+	offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "]");
 
     offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, ",\"pressure\":[");
     for (int i = 0; i < sensors[count].measure_count; i++) {
         offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "%.2f%s",
-        sensors[count].pressure[i], (i < sensors[count].measure_count - 1) ? "," : "]");
+        sensors[count].pressure[i], (i < sensors[count].measure_count - 1) ? "," : "");
     }
+	offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "]");
 
     offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "}");
     offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "}");
 
     return json_buf;
 }
+*/
+// Helper function to format a float array as JSON
+static int format_json_array(char *buf, size_t buf_size, int offset, 
+                            const char *field_name, float *values, int count) {
+    offset += snprintf(buf + offset, buf_size - offset, "\"%s\":[", field_name);
+    for (int i = 0; i < count; i++) {
+        offset += snprintf(buf + offset, buf_size - offset, "%.2f%s", // Maybe move the formatting into the field array later?
+                          values[i], (i < count - 1) ? "," : "");
+    }
+    offset += snprintf(buf + offset, buf_size - offset, "]");
+    return offset;
+}
+//  should be a safe drop-in replacement of the old one
+char* json_data_string(int count) {
+    int offset = 0;
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, 
+                      "{\"%s\":{\"batch_number\":%u,", sensors[count].mac, batch_number);
+    // Array of field info
+    struct {
+        const char *name;
+        float *data;
+    } fields[] = {
+        {"temperature", sensors[count].temperature},
+        {"humidity", sensors[count].humidity},
+        {"pressure", sensors[count].pressure}
+    };
+    for (int field = 0; field < 3; field++) {
+        if (field > 0) offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, ",");
+        offset = format_json_array(json_buf, sizeof(json_buf), offset, 
+                                  fields[field].name, fields[field].data, sensors[count].measure_count);
+    }
+    offset += snprintf(json_buf + offset, sizeof(json_buf) - offset, "}}");
+    return json_buf;
+}
+
 
 int send_data(void){
 	const char *access_token = cloud_request_access_token();
@@ -190,7 +235,7 @@ int send_data(void){
 	return 0;
 }
 
-int send_day_data(void){
+int send_scheduled_data(void){
 	int ret = 0;
 	
 	ret = send_data();
@@ -249,6 +294,7 @@ bool gpio_status(void){
 
 void clean_data(){
 	for (int i = 0; i < RUUVITAG_COUNT; i++) {
+		batch_number = 0; // Reset batch number after successful send
         memset(sensors[i].temperature, 0, sizeof(sensors[i].temperature));
         memset(sensors[i].humidity, 0, sizeof(sensors[i].humidity));
         memset(sensors[i].pressure, 0, sizeof(sensors[i].pressure));
