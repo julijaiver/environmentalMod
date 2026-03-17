@@ -27,15 +27,9 @@ typedef struct {
 extern struct k_msgq json_msgq;
 
 extern const char *ruuvitag_devices[RUUVITAG_COUNT];
-static char seen_ruuvitag_devices[RUUVITAG_COUNT][MAC_ADDRESS_LEN];
+
 extern int seen_count;
 
-static struct bt_le_scan_param scan_params = {
-		.type 		= BT_LE_SCAN_TYPE_PASSIVE,
-		.interval 	= BT_GAP_SCAN_FAST_INTERVAL,
-		.window 	= BT_GAP_SCAN_FAST_WINDOW,
-		.options 	= BT_LE_SCAN_OPT_FILTER_DUPLICATE,
-	};
 
 
 void parse_ruuvitag(uint8_t *data_ptr);

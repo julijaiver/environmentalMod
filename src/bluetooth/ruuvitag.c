@@ -11,6 +11,15 @@
 #include "ruuvitag.h"
 #include "device.h"
 
+static char seen_ruuvitag_devices[RUUVITAG_COUNT][MAC_ADDRESS_LEN];
+static struct bt_le_scan_param scan_params = {
+		.type 		= BT_LE_SCAN_TYPE_PASSIVE,
+		.interval 	= BT_GAP_SCAN_FAST_INTERVAL,
+		.window 	= BT_GAP_SCAN_FAST_WINDOW,
+		.options 	= BT_LE_SCAN_OPT_FILTER_DUPLICATE,
+	};
+
+
 K_MSGQ_DEFINE(json_msgq, sizeof(json_data_t), JSON_QUEUE_SIZE, 4);
 int seen_count = 0;
 const char *ruuvitag_devices[RUUVITAG_COUNT] = {"DD:83:3D:A4:CE:C6", "DD:42:FA:12:2A:CD", "DB:C3:58:D9:03:70", "E2:70:D7:96:45:18", "EE:DF:9F:BA:8D:49"};

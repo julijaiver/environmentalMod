@@ -20,7 +20,7 @@
 
 static const struct gpio_dt_spec modem_gpio = GPIO_DT_SPEC_GET(MODEM_PIN_NODE, modem_pin_gpios);
 static SensorData sensors[RUUVITAG_COUNT];
-static char json_buf[40960];
+static char json_buf[4096]; // original 40960
 static uint16_t batch_number = 0; // keeps track of measurement batches within an upload. This lets you separate which measurements came in which measurement cycle.
 
 char* deleteChar(char* s, char ch) {
@@ -190,7 +190,7 @@ static int format_json_array(char *buf, size_t buf_size, int offset,
     offset += snprintf(buf + offset, buf_size - offset, "\"%s\":[", field_name);
     for (int i = 0; i < count; i++) {
         offset += snprintf(buf + offset, buf_size - offset, "%.2f%s", // Maybe move the formatting into the field array later?
-                          values[i], (i < count - 1) ? "," : "");
+                          (double) values[i], (i < count - 1) ? "," : "");
     }
     offset += snprintf(buf + offset, buf_size - offset, "]");
     return offset;
@@ -230,7 +230,7 @@ int send_data(void){
 		}
 	}
 	//int result = cloud_publish(access_token, data);
-	k_free(access_token);
+	k_free((void *) access_token);
 	
 	return 0;
 }

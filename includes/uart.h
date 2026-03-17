@@ -8,8 +8,6 @@
 
 extern struct k_msgq uart_msgq;
 
-static char rx_buf[MSG_SIZE];
-static int rx_buf_pos;
 
 void serial_cb(const struct device *dev, void *user_data);
 void print_uart(const char *buf);

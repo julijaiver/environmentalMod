@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define MEASURE_CYCLE_SLEEP 1000 * 300
+#define MEASURE_CYCLE_SLEEP (1000 * 60 * 5)
 #define MAX_MEASUREMENTS    300
 #define MODEM_PIN_NODE DT_PATH(zephyr_user)
 

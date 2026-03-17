@@ -10,6 +10,9 @@
 #include "uart.h"
 #include "modem.h"
 
+static char rx_buf[MSG_SIZE];
+static int rx_buf_pos;
+
 K_MSGQ_DEFINE(uart_msgq, MSG_SIZE, 10, 4);
 static const struct device *const uart_dev = DEVICE_DT_GET(DT_NODELABEL(uart0));
 const struct uart_config uart_cfg = {

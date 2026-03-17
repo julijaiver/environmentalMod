@@ -1,0 +1,70 @@
+// To get started, press Ctrl+Space (or Option+Esc) to bring up the completion menu and view the available nodes.
+
+// You can also use the buttons in the sidebar to perform actions on nodes.
+// Actions currently available include:
+
+// * Enabling / disabling the node
+// * Adding the bus to a bus
+// * Removing the node
+// * Connecting ADC channels
+
+// For more help, browse the DeviceTree documentation at https://docs.zephyrproject.org/latest/guides/dts/index.html
+// You can also visit the nRF DeviceTree extension documentation at https://docs.nordicsemi.com/bundle/nrf-connect-vscode/page/guides/ncs_configure_app.html#devicetree-support-in-the-extension
+
+/ {
+	zephyr,user {
+		break_pin-gpios = <&gpio1 0 0>;
+		modem_pin-gpios = <&gpio0 13 0>;
+		modem_ctrl-gpios = <&gpio1 10 0>;
+	};
+	chosen {
+		zephyr,modem-uart = &uart0;
+		zephyr,uart-pipe = &board_cdc_acm_uart;
+	};
+};
+
+&mwu {
+	status = "disabled";
+};
+
+/ {
+	aliases {
+		modem-uart = &uart0;
+	};
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-1 = <&uart1_sleep>;
+	pinctrl-names = "default", "sleep";
+	current-speed = <1200>;
+	parity = "none";
+	stop-bits = "1";
+	data-bits = <8>;
+};
+
+&pinctrl {
+	uart1_default: uart1_default {
+		group1 {
+			psels = <NRF_PSEL(UART_RX, 0, 10)>, <NRF_PSEL(UART_TX, 0, 9)>;
+		};
+	};
+
+	uart1_sleep: uart1_sleep {
+		group1 {
+			psels = <NRF_PSEL(UART_TX, 0, 9)>;
+		};
+	};
+};
+
+&uart0_default {
+	group1 {
+		psels = <NRF_PSEL(UART_TX, 0, 20)>;
+	};
+
+	group2 {
+		psels = <NRF_PSEL(UART_RX, 0, 24)>;
+		/delete-property/ bias-pull-up;
+	};
+};
