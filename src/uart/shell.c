@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 #include "nv_params.h"
+#include "data_queue.h"
 
 
 static int cmd_nvs_read_tags(const struct shell *sh, size_t argc, char **argv)
@@ -65,3 +66,15 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_tags,
 );
 
 SHELL_CMD_REGISTER(tag, &sub_tags, "BLE tag commands.", NULL);
+
+static int cmd_trigger_transmit(const struct shell *sh, size_t argc, char **argv)
+{
+    ARG_UNUSED(sh);
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	cloud_send_notify(NULL);
+	
+	return 0;
+}
+SHELL_CMD_REGISTER(transmit, NULL, "Trigger data transmit.", cmd_trigger_transmit);

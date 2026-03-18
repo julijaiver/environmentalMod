@@ -6,5 +6,6 @@
 #define DATA_QUEUE_LENGTH   128
 
 int data_put(struct sensor_data *data);
+void cloud_send_notify(struct k_timer *timer);
 
 #endif

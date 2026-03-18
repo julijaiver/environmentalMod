@@ -10,7 +10,6 @@ LOG_MODULE_REGISTER(cloud_send, CONFIG_MODEM_MODULES_LOG_LEVEL);
 #include "data_queue.h"
 
 static void cloud_send(void *p1, void *p2, void *p3);
-static void cloud_send_notify(struct k_timer *timer);
 
 #define CLOUD_SEND_THREAD_PRIORITY 7
 #define CLOUD_WAKEUP_EVENT 1
@@ -18,7 +17,7 @@ static void cloud_send_notify(struct k_timer *timer);
 
 K_MSGQ_DEFINE(transmit_queue, sizeof(struct sensor_data), DATA_QUEUE_LENGTH, 1);
 
-K_THREAD_DEFINE(cloud_send_thread, 8192, cloud_send, NULL, NULL, NULL, CLOUD_SEND_THREAD_PRIORITY, 0, 0);
+K_THREAD_DEFINE(cloud_send_thread, 8192*2, cloud_send, NULL, NULL, NULL, CLOUD_SEND_THREAD_PRIORITY, 0, 0);
 
 K_EVENT_DEFINE(cloud_events);
 
@@ -54,7 +53,7 @@ int data_put(struct sensor_data *data)
     return rc;
 }
 
-static void cloud_send_notify(struct k_timer *timer)
+void cloud_send_notify(struct k_timer *timer)
 {
     ARG_UNUSED(timer);
 
