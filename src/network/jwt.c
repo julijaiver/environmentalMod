@@ -35,7 +35,7 @@ void jwt_init(jwt_t *jwt){
     jwt->payload.scope = JWT_SCOPE;
     jwt->payload.iss = JWT_ISSUER;
     jwt->payload.sub = JWT_SUBJECT;
-    jwt->payload.iat = get_current_time() - (3600 * 3); // Adjust to UCT
+    jwt->payload.iat = get_current_time();// - (3600 * 3); // Adjust to UCT
     jwt->payload.exp = jwt->payload.iat + 3600;
 }
 
