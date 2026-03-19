@@ -2,8 +2,10 @@
 #include <zephyr/shell/shell.h>
 #include <zephyr/version.h>
 #include <zephyr/logging/log.h>
-#include <stdlib.h>
 #include <zephyr/drivers/uart.h>
+#include <zephyr/debug/thread_analyzer.h>
+
+#include <stdlib.h>
 #include <ctype.h>
 
 #include "nv_params.h"
@@ -74,7 +76,19 @@ static int cmd_trigger_transmit(const struct shell *sh, size_t argc, char **argv
 	ARG_UNUSED(argv);
 
 	cloud_send_notify(NULL);
-	
+
 	return 0;
 }
 SHELL_CMD_REGISTER(transmit, NULL, "Trigger data transmit.", cmd_trigger_transmit);
+
+static int cmd_thread_info(const struct shell *sh, size_t argc, char **argv)
+{
+    ARG_UNUSED(sh);
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	thread_analyzer_print(0);
+
+	return 0;
+}
+SHELL_CMD_REGISTER(stat, NULL, "Print thread statistics", cmd_thread_info);
