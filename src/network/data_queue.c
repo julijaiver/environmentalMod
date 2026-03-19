@@ -17,7 +17,7 @@ static void cloud_send(void *p1, void *p2, void *p3);
 
 K_MSGQ_DEFINE(transmit_queue, sizeof(struct sensor_data), DATA_QUEUE_LENGTH, 1);
 
-K_THREAD_DEFINE(cloud_send_thread, 8192*2, cloud_send, NULL, NULL, NULL, CLOUD_SEND_THREAD_PRIORITY, 0, 0);
+K_THREAD_DEFINE(cloud_send_thread, 8192, cloud_send, NULL, NULL, NULL, CLOUD_SEND_THREAD_PRIORITY, 0, 0);
 
 K_EVENT_DEFINE(cloud_events);
 
