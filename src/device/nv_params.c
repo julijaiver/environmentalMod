@@ -70,7 +70,7 @@ int is_listed(const bt_addr_t *bta) {
             char addr_str[BT_ADDR_LE_STR_LEN];
             bt_addr_to_str(&ruuvi_tags[i], addr_str, sizeof(addr_str));
             LOG_INF("Match: %d, %s", i, addr_str);
-            return i;
+            return 1 << i;
         }
         
     }
