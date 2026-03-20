@@ -19,9 +19,9 @@
 #include "ruuvitag.h"
 
 static const struct gpio_dt_spec modem_gpio = GPIO_DT_SPEC_GET(MODEM_PIN_NODE, modem_pin_gpios);
-static SensorData sensors[RUUVITAG_COUNT];
-static char json_buf[4096]; // original 40960
-static uint16_t batch_number = 0; // keeps track of measurement batches within an upload. This lets you separate which measurements came in which measurement cycle.
+//static SensorData sensors[RUUVITAG_COUNT];
+//static char json_buf[4096]; // original 40960
+//static uint16_t batch_number = 0; // keeps track of measurement batches within an upload. This lets you separate which measurements came in which measurement cycle.
 
 char* deleteChar(char* s, char ch) {
     int i, j;
@@ -74,16 +74,15 @@ uint16_t setup(struct tm *time){
 		}
 	}
 
-	if(activate_bluetooth() != 0) err |= ERR_BLUETOOTH_SETUP;
-
 	if(err != ERR_NONE){
 		print_errors(err);
 	}
 
-	init_sensors();
+	//init_sensors();
 	return err;
 }
 
+#if 0
 int take_measurement(){
 	json_data_t data;
 	int tries = 0;
@@ -248,6 +247,17 @@ int send_scheduled_data(void){
 	return ret;
 }
 
+void clean_data(){
+	for (int i = 0; i < RUUVITAG_COUNT; i++) {
+		batch_number = 0; // Reset batch number after successful send
+        memset(sensors[i].temperature, 0, sizeof(sensors[i].temperature));
+        memset(sensors[i].humidity, 0, sizeof(sensors[i].humidity));
+        memset(sensors[i].pressure, 0, sizeof(sensors[i].pressure));
+        sensors[i].measure_count = 0;
+    }
+}
+#endif
+
 int startup_modem(void){
 
 	modem_pin_set(1);
@@ -292,12 +302,3 @@ bool gpio_status(void){
 	return device_is_ready(modem_gpio.port);
 }
 
-void clean_data(){
-	for (int i = 0; i < RUUVITAG_COUNT; i++) {
-		batch_number = 0; // Reset batch number after successful send
-        memset(sensors[i].temperature, 0, sizeof(sensors[i].temperature));
-        memset(sensors[i].humidity, 0, sizeof(sensors[i].humidity));
-        memset(sensors[i].pressure, 0, sizeof(sensors[i].pressure));
-        sensors[i].measure_count = 0;
-    }
-}

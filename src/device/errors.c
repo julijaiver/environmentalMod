@@ -105,21 +105,5 @@ void handle_errors(uint16_t *err, struct tm *time) {
         if(tries >= MAX_TRIES) printk("Failed\n");
     }
 
-    if(*err & ERR_BLUETOOTH_SETUP) {
-        printk("Trying to initialize Bluetooth again...\n");
-        tries = 0;
-        while(tries < MAX_TRIES){
-            k_msleep(RETRY_DELAY_MS);
-            printk(".\n");
-            
-            if(activate_bluetooth() == 0){
-                printk("Success\n");
-                *err &= ~ERR_BLUETOOTH_SETUP;
-                break;
-            }
-            tries++;
-        }
-        if(tries >= MAX_TRIES) printk("Failed\n");
-    }
     modem_power_off();
 }

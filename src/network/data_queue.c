@@ -63,9 +63,10 @@ void cloud_send_notify(struct k_timer *timer)
 static void ruuvi_tag_to_json(struct sensor_data *data, char *json_buf, int size)
 {
     snprintf(json_buf, size,
-             "{\"mac\":\"%s\",\"ts\":%ld,\"t\":%.2f,\"h\":%.2f,\"p\":%.2f}",
+             "{\"mac\":\"%s\",\"ts\":%ld,\"t\":%.2f,\"h\":%.2f,\"p\":%.2f,\"bv\":%.2f}",
              data->id, (long int)data->timestamp,
-             (double)data->ruuvi.temperature, (double)data->ruuvi.humidity, (double)data->ruuvi.pressure);
+             (double)data->ruuvi.temperature, (double)data->ruuvi.humidity, 
+             (double)data->ruuvi.pressure, (double) data->ruuvi.bat_voltage);
 };
 
 static void teros12_to_json(struct sensor_data *data, char *json_buf, int size)

@@ -44,6 +44,7 @@ void sdi12_scan_thread(void *arg0, void *arg1,  void *arg2)
 
             int rv = sscanf(rsp + 5, "%f%f%f", &data.teros.vwc, &data.teros.temp, &data.teros.ec);
             if(rv == 3) {
+                // with single sensor the id is set during init, jsut set timestamp
                 data.timestamp = time(NULL);
                 // teros 12
                 if(data_put(&data) < 0) {

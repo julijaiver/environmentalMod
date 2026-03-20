@@ -15,11 +15,18 @@
 #include "ruuvitag.h"
 #include "uart.h"
 #include "sdi12_scan.h"
+#include "ruuvi_scan.h"
 #include "nv_params.h"
 
 K_THREAD_STACK_DEFINE(sdi12_stack_area, SDI12_STACKSIZE);
 struct k_thread sdi12_scan_thread_data;
 k_tid_t sdi12_scan_thread_id;
+
+
+K_THREAD_STACK_DEFINE(ruuvi_stack_area, RUUVI_STACKSIZE);
+struct k_thread ruuvi_scan_thread_data;
+k_tid_t ruuvi_scan_thread_id;
+
 
 int main(void)
 {
@@ -41,7 +48,15 @@ int main(void)
 										   sdi12_scan_thread,
 										   NULL, NULL, NULL,
 										   SDI12_THREAD_PRIORITY, 0, K_NO_WAIT);
+	k_thread_name_set(sdi12_scan_thread_id, "sdi12_scan");
 
+	ruuvi_scan_thread_id = k_thread_create(&ruuvi_scan_thread_data, ruuvi_stack_area,
+										   K_THREAD_STACK_SIZEOF(ruuvi_stack_area),
+										   ruuvi_scan_thread,
+										   NULL, NULL, NULL,
+										   RUUVI_THREAD_PRIORITY, 0, K_NO_WAIT);
+	k_thread_name_set(ruuvi_scan_thread_id, "ruuvi_scan");
+	
 	// Main loop
 	while (1)
 	{

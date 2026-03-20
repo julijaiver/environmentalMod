@@ -11,6 +11,7 @@
 #include "ruuvitag.h"
 #include "device.h"
 
+#if 0
 static char seen_ruuvitag_devices[RUUVITAG_COUNT][MAC_ADDRESS_LEN];
 static struct bt_le_scan_param scan_params = {
 		.type 		= BT_LE_SCAN_TYPE_PASSIVE,
@@ -146,7 +147,6 @@ void scan_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type, struct net_
 }
 
 
-
 int activate_bluetooth(void)
 {
 	int err;
@@ -177,6 +177,7 @@ int stop_ble_scan(void){
 	return 0;
 }
 
+
 void reset_seen_devices() {
     for (int i = 0; i < seen_count; i++) {
         seen_ruuvitag_devices[i][0] = '\0';
@@ -206,3 +207,4 @@ void add_seen_mac(const char *addr) {
         seen_count++;
     }
 }
+#endif

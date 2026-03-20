@@ -15,6 +15,7 @@ LOG_MODULE_REGISTER(nvparams, CONFIG_MODEM_MODULES_LOG_LEVEL);
 #include <string.h>
 #include <ctype.h>
 #include "nv_params.h"
+#include "ruuvitag.h"
 
 static struct nvs_fs fs;
 
@@ -25,7 +26,7 @@ static struct nvs_fs fs;
 #define BLE_DEVICE_NV_ADDR  1
 #define SDI12_DEVICE_NV_ADDR 2
 
-#define MAX_RUUVI_TAG  10
+
 
 static const bt_addr_t null_bt = {};
 
@@ -75,7 +76,7 @@ int is_listed(const bt_addr_t *bta) {
         
     }
 
-	return -1;
+	return 0;
 }
 
 int get_tag_mask(void)
@@ -93,8 +94,8 @@ int get_tag_mask(void)
 int nvs_read_tags(void)
 {
     int rc = nvs_read(&fs, BLE_DEVICE_NV_ADDR, &ruuvi_tags, sizeof(ruuvi_tags));
-    LOG_INF("read rv: %d", rc);
-    LOG_HEXDUMP_INF(&ruuvi_tags, sizeof(ruuvi_tags), "Tags:");
+    LOG_DBG("read rv: %d", rc);
+    LOG_HEXDUMP_DBG(&ruuvi_tags, sizeof(ruuvi_tags), "Tags:");
 
     for(int i = 0; i < MAX_RUUVI_TAG && bt_addr_cmp(&ruuvi_tags[i], &null_bt); ++i) {
         char addr_str[BT_ADDR_LE_STR_LEN];
