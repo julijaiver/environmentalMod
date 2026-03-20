@@ -10,6 +10,7 @@ struct ruuvi_tag {
     float temperature;
     float pressure;
     float humidity;
+    float bat_voltage;
 };
 
 struct teros12 {
