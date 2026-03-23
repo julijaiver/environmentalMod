@@ -84,6 +84,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
 
     while (true)
     {
+        int fail_count = 0;
         k_event_wait(&cloud_events, CLOUD_WAKEUP_EVENT, true, K_FOREVER);
         LOG_INF("wakeup");
 #if 0
@@ -98,7 +99,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
         {
             const char *access_token = cloud_request_access_token();
             // peek first and remove only after successfull transmit
-            while (k_msgq_peek(&transmit_queue, &data) == 0)
+            while (fail_count < CLOUD_SEND_RETRY_COUNT && k_msgq_peek(&transmit_queue, &data) == 0)
             {
                 LOG_INF("%s %u", data.id, (unsigned int)data.timestamp);
                 static char json_msg[512];
@@ -119,11 +120,16 @@ static void cloud_send(void *p1, void *p2, void *p3)
 
                 if (result == MODEM_SUCCESS)
                 {
+                    fail_count = 0;
                     // remove message from queue after transmit - should always succeed because we already peeked the message
                     if (k_msgq_get(&transmit_queue, &data, K_NO_WAIT) != 0)
                     {
                         LOG_ERR("No message after succesfull peek");
                     }
+                }
+                else {
+                    ++fail_count;
+                    LOG_INF("Send failed: %d", fail_count);
                 }
             }
 

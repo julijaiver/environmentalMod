@@ -4,6 +4,7 @@
 #include "data_types.h"
 
 #define DATA_QUEUE_LENGTH   256
+#define CLOUD_SEND_RETRY_COUNT   3
 
 int data_put(struct sensor_data *data);
 void cloud_send_notify(struct k_timer *timer);
