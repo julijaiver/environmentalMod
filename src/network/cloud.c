@@ -27,7 +27,8 @@ const char* cloud_request_access_token(void) {
     if(modem_ret != MODEM_SUCCESS){
         stop_http_client();
         k_free(res);
-        return modem_status_to_string(modem_ret);
+        return NULL;
+        //return modem_status_to_string(modem_ret);
     }
 
     char body[ACCESS_TOKEN_BODY];
@@ -39,11 +40,12 @@ const char* cloud_request_access_token(void) {
     modem_ret = send_http_post(ACCESS_TOKEN_URL, ACCESS_TOKEN_CONTENT_TYPE, body, body_len, NULL);
     if(modem_ret != MODEM_SUCCESS){
         stop_http_client();
-        return modem_status_to_string(modem_ret);
+        return NULL;
+        //return modem_status_to_string(modem_ret);
     } 
 
     char *access_token = (char*)k_malloc(ACCESS_TOKEN_SIZE);
-    modem_ret = read_http_response(access_token);
+    if(access_token) modem_ret = read_http_response(access_token);
 
     stop_http_client();
     return (const char*)access_token;
