@@ -60,22 +60,24 @@ void cloud_send_notify(struct k_timer *timer)
     k_event_post(&cloud_events, CLOUD_WAKEUP_EVENT);
 }
 
-static void ruuvi_tag_to_json(struct sensor_data *data, char *json_buf, int size)
+static int ruuvi_tag_to_json(struct sensor_data *data, char *json_buf, int size)
 {
-    snprintf(json_buf, size,
+    return snprintf(json_buf, size,
              "{\"mac\":\"%s\",\"ts\":%ld,\"t\":%.2f,\"h\":%.2f,\"p\":%.2f,\"bv\":%.2f}",
              data->id, (long int)data->timestamp,
-             (double)data->ruuvi.temperature, (double)data->ruuvi.humidity, 
-             (double)data->ruuvi.pressure, (double) data->ruuvi.bat_voltage);
+             (double)data->ruuvi.temperature, (double)data->ruuvi.humidity,
+             (double)data->ruuvi.pressure, (double)data->ruuvi.bat_voltage);
 };
 
-static void teros12_to_json(struct sensor_data *data, char *json_buf, int size)
+static int teros12_to_json(struct sensor_data *data, char *json_buf, int size)
 {
-    snprintf(json_buf, size,
+    return snprintf(json_buf, size,
              "{\"id\":\"%s\",\"ts\":%ld,\"vwc\":%.2f,\"t\":%.2f,\"ec\":%.2f}",
              data->id, (long int)data->timestamp,
              (double)data->teros.vwc, (double)data->teros.temp, (double)data->teros.ec);
 };
+
+#define JSON_MARGIN  128
 
 static void cloud_send(void *p1, void *p2, void *p3)
 {
@@ -85,49 +87,58 @@ static void cloud_send(void *p1, void *p2, void *p3)
     while (true)
     {
         int fail_count = 0;
+        const char *access_token = NULL;
         k_event_wait(&cloud_events, CLOUD_WAKEUP_EVENT, true, K_FOREVER);
         LOG_INF("wakeup");
-#if 0
-        while (k_msgq_get(&transmit_queue, &data, K_NO_WAIT) == 0)
-        {
-            static char json_msg[512];
-            teros12_to_json(&data, json_msg, sizeof(json_msg));
-            LOG_INF("%s", json_msg);
-        }
-#else
         if (startup_modem() == 0)
         {
-            const char *access_token = cloud_request_access_token();
-            // peek first and remove only after successfull transmit
-            while (fail_count < CLOUD_SEND_RETRY_COUNT && k_msgq_peek(&transmit_queue, &data) == 0)
-            {
-                LOG_INF("%s %u", data.id, (unsigned int)data.timestamp);
-                static char json_msg[512];
+            access_token = cloud_request_access_token();
 
-                switch (data.type)
+            while (access_token && fail_count < CLOUD_SEND_RETRY_COUNT && k_msgq_num_used_get(&transmit_queue) > 0)
+            {
+                static char json_msg[2048];
+                int msg_count = 0;
+                int json_pos = 0;
+                json_pos = snprintf(json_msg, sizeof(json_msg), "{\"measurements\":[");
+                // peek first and remove only after successfull transmit
+                while (json_pos + JSON_MARGIN < sizeof(json_msg) && k_msgq_peek_at(&transmit_queue, &data, msg_count) == 0)
                 {
-                case TYPE_RUUVI_TAG:
-                    ruuvi_tag_to_json(&data, json_msg, sizeof(json_msg));
-                    break;
-                case TYPE_TEROS12:
-                    teros12_to_json(&data, json_msg, sizeof(json_msg));
-                    break;
-                default:
-                    json_msg[0] = 0;
+                    LOG_INF("%s %u", data.id, (unsigned int)data.timestamp);
+                    if(msg_count > 0) {
+                        strcat(json_msg + json_pos, ",");
+                        ++json_pos;
+                    }
+                    switch (data.type)
+                    {
+                    case TYPE_RUUVI_TAG:
+                        json_pos += ruuvi_tag_to_json(&data, json_msg + json_pos, sizeof(json_msg) - json_pos);
+                        break;
+                    case TYPE_TEROS12:
+                        json_pos += teros12_to_json(&data, json_msg + json_pos, sizeof(json_msg) - json_pos);
+                        break;
+                    default:
+                        LOG_INF("Unknown data type in queue");
+                    }
+                    ++msg_count;
                 }
-                LOG_INF("JSON: %s", json_msg);
+                json_pos += snprintf(json_msg + json_pos, sizeof(json_msg)-json_pos, "]}");
+                LOG_INF("JSON: %d, %d", msg_count, json_pos);
                 int result = cloud_publish(access_token, json_msg);
 
                 if (result == MODEM_SUCCESS)
                 {
                     fail_count = 0;
                     // remove message from queue after transmit - should always succeed because we already peeked the message
-                    if (k_msgq_get(&transmit_queue, &data, K_NO_WAIT) != 0)
+                    while(msg_count > 0) 
                     {
-                        LOG_ERR("No message after succesfull peek");
+                        if(k_msgq_get(&transmit_queue, &data, K_NO_WAIT) == 0)
+                            --msg_count;
+                        else
+                            LOG_ERR("No message after succesfull peek");
                     }
                 }
-                else {
+                else
+                {
                     ++fail_count;
                     LOG_INF("Send failed: %d", fail_count);
                 }
@@ -137,6 +148,5 @@ static void cloud_send(void *p1, void *p2, void *p3)
         }
 
         modem_power_off();
-#endif
     }
 }
