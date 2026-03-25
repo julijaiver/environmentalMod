@@ -130,6 +130,7 @@ modem_status_t read_http_response(char *res){
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");
             snprintf(res, 8, "ERROR");
+            k_free(full_response);
             return MODEM_ERR_HTTP_READ;
         }
         if(strstr(response, "+HTTPREAD:") != NULL){
@@ -146,6 +147,7 @@ modem_status_t read_http_response(char *res){
         if (strstr(response, "ERROR") != NULL) {
             printk("ERROR: Modem reported ERROR\n");
             snprintf(res, 8, "ERROR");
+            k_free(full_response);
             return MODEM_ERR_HTTP_READ;
         }
         if(strstr(response, "+HTTPREAD:") == NULL){ 
