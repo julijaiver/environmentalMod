@@ -77,7 +77,11 @@ static int teros12_to_json(struct sensor_data *data, char *json_buf, int size)
              (double)data->teros.vwc, (double)data->teros.temp, (double)data->teros.ec);
 };
 
-#define JSON_MARGIN  128
+
+// cloud send is based on assumption that a single measurement is less than this size
+#define JSON_ELEMENT_MAX_SIZE  256
+// margin for closing the JSON array of measurements and comma between array elements
+#define JSON_MARGIN 16
 
 static void cloud_send(void *p1, void *p2, void *p3)
 {
@@ -101,20 +105,20 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 int json_pos = 0;
                 json_pos = snprintf(json_msg, sizeof(json_msg), "{\"measurements\":[");
                 // peek first and remove only after successfull transmit
-                while (json_pos + JSON_MARGIN < sizeof(json_msg) && k_msgq_peek_at(&transmit_queue, &data, msg_count) == 0)
+                while (json_pos + JSON_ELEMENT_MAX_SIZE + JSON_MARGIN < sizeof(json_msg) && k_msgq_peek_at(&transmit_queue, &data, msg_count) == 0)
                 {
                     LOG_INF("%s %u", data.id, (unsigned int)data.timestamp);
-                    if(msg_count > 0) {
+                    if(msg_count > 0) { // add comma before element if this is not the first element
                         strcat(json_msg + json_pos, ",");
                         ++json_pos;
                     }
                     switch (data.type)
                     {
                     case TYPE_RUUVI_TAG:
-                        json_pos += ruuvi_tag_to_json(&data, json_msg + json_pos, sizeof(json_msg) - json_pos);
+                        json_pos += ruuvi_tag_to_json(&data, json_msg + json_pos, JSON_ELEMENT_MAX_SIZE);
                         break;
                     case TYPE_TEROS12:
-                        json_pos += teros12_to_json(&data, json_msg + json_pos, sizeof(json_msg) - json_pos);
+                        json_pos += teros12_to_json(&data, json_msg + json_pos, JSON_ELEMENT_MAX_SIZE);
                         break;
                     default:
                         LOG_INF("Unknown data type in queue");
