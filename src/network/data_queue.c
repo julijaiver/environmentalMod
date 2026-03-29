@@ -1,5 +1,6 @@
 #include <zephyr/kernel.h>
 #include <stdio.h>
+#include <math.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(cloud_send, CONFIG_MODEM_MODULES_LOG_LEVEL);
@@ -71,10 +72,13 @@ static int ruuvi_tag_to_json(struct sensor_data *data, char *json_buf, int size)
 
 static int teros12_to_json(struct sensor_data *data, char *json_buf, int size)
 {
+    double raw = data->teros.vwc;
+    double vwc = 6.771e-10 * pow(raw, 3) - 5.105e-6 * pow(raw, 2) + 1.302e-2 * raw -10.848;
+    
     return snprintf(json_buf, size,
-             "{\"id\":\"%s\",\"ts\":%ld,\"vwc\":%.2f,\"t\":%.2f,\"ec\":%.2f}",
+             "{\"id\":\"%s\",\"ts\":%ld,\"vwc\":%.2f,\"t\":%.2f,\"ec\":%.2f,\"raw\":%.2f}",
              data->id, (long int)data->timestamp,
-             (double)data->teros.vwc, (double)data->teros.temp, (double)data->teros.ec);
+             vwc, (double)data->teros.temp, (double)data->teros.ec, raw);
 };
 
 
@@ -147,6 +151,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     LOG_INF("Send failed: %d", fail_count);
                 }
             }
+            if(access_token == NULL) LOG_INF("No access token");
 
             k_free((void *)access_token);
         }
