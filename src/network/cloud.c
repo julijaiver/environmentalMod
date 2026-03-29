@@ -23,6 +23,8 @@ const char* cloud_request_access_token(void) {
 	jwt_init(&access_token_jwt);
 
 	char *res = jwt_build(JWT_HEADER, access_token_jwt.payload);
+    if(res == NULL) return;
+    
     modem_ret = start_http_client();
     if(modem_ret != MODEM_SUCCESS){
         stop_http_client();
