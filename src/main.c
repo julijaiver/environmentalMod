@@ -27,12 +27,32 @@ K_THREAD_STACK_DEFINE(ruuvi_stack_area, RUUVI_STACKSIZE);
 struct k_thread ruuvi_scan_thread_data;
 k_tid_t ruuvi_scan_thread_id;
 
+#define BOOT_HALT_EVENT      1
+#define BOOT_CONTINUE_EVENT  2
+K_EVENT_DEFINE(console_wait_events);
+
+void boot_halt(void)
+{
+    k_event_post(&console_wait_events, BOOT_HALT_EVENT);
+}
+
+void boot_continue(void)
+{
+    k_event_post(&console_wait_events, BOOT_CONTINUE_EVENT);
+}
 
 int main(void)
 {
 	struct tm rtc_time;
 
 	nv_params_init();
+#if 0
+	printk("Type \"stop\" to stop boot\n");
+
+	if(k_event_wait(&console_wait_events, BOOT_HALT_EVENT | BOOT_CONTINUE_EVENT, true, K_SECONDS(30)) == BOOT_HALT_EVENT) {
+		k_event_wait(&console_wait_events, BOOT_CONTINUE_EVENT, true, K_FOREVER);
+	}
+#endif
 
 	uint16_t err = setup(&rtc_time);
 

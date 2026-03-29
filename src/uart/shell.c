@@ -92,3 +92,30 @@ static int cmd_thread_info(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 SHELL_CMD_REGISTER(stat, NULL, "Print thread statistics", cmd_thread_info);
+
+void boot_halt(void);
+void boot_continue(void);
+
+static int cmd_boot_halt(const struct shell *sh, size_t argc, char **argv)
+{
+    ARG_UNUSED(sh);
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	boot_halt();
+
+	return 0;
+}
+SHELL_CMD_REGISTER(stop, NULL, "Stop booting", cmd_boot_halt);
+
+static int cmd_boot_continue(const struct shell *sh, size_t argc, char **argv)
+{
+    ARG_UNUSED(sh);
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	boot_continue();
+
+	return 0;
+}
+SHELL_CMD_REGISTER(continue, NULL, "Continue booting", cmd_boot_continue);
