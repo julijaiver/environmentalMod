@@ -50,9 +50,14 @@ const char *modem_status_to_string(modem_status_t status) {
 
 bool send_at_command(const char *cmd, const char *expected_response, k_timeout_t timeout)
 {
+	return send_at_command_len(cmd, strlen(cmd), expected_response, timeout);
+}
+
+bool send_at_command_len(const char *cmd, size_t cmd_len, const char *expected_response, k_timeout_t timeout)
+{
 	char response[MSG_SIZE];
 	
-	print_uart(cmd);
+	send_uart(cmd, cmd_len);
 	print_uart("\r\n");
 
 	// Wait for response
@@ -68,6 +73,8 @@ bool send_at_command(const char *cmd, const char *expected_response, k_timeout_t
 	
 	return false;
 }
+
+
 
 modem_status_t initialize_modem(void)
 {
@@ -134,7 +141,10 @@ modem_status_t read_http_response(char *res){
             return MODEM_ERR_HTTP_READ;
         }
         if(strstr(response, "+HTTPREAD:") != NULL){
-            int parsed =  sscanf(response, "+HTTPREAD: LEN,%d", &response_len);
+            if(sscanf(response, "+HTTPREAD: LEN,%d", &response_len) != 1){
+                printk("ERROR: can't parse response length\n");
+            }
+
         }
         i++;
     }
@@ -322,7 +332,7 @@ modem_status_t send_tcp_post_request(const char* request, size_t len){
     if(!send_at_command(cmd, ">", AT_RESPONSE_TIMEOUT));
     
     k_msleep(100);
-    send_at_command(request, "OK", AT_RESPONSE_TIMEOUT);
+    send_at_command_len(request, len, "OK", AT_RESPONSE_TIMEOUT);
 
     return MODEM_SUCCESS;
 }

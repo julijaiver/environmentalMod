@@ -47,6 +47,7 @@ typedef enum {
 
 const char *modem_status_to_string(modem_status_t status);
 bool send_at_command(const char *cmd, const char *expected_response, k_timeout_t timeout);
+bool send_at_command_len(const char *cmd, size_t cmd_len, const char *expected_response, k_timeout_t timeout);
 modem_status_t initialize_modem(void);
 modem_status_t send_http_post(const char *url, const char *content_type, const char *data, size_t data_len, char *headers);
 modem_status_t start_http_client(void);
