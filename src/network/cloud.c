@@ -20,36 +20,41 @@ const char* cloud_request_access_token(void) {
 
     jwt_t access_token_jwt;
     modem_status_t modem_ret;
+    char *token_buffer;
+    size_t body_len;
 
 	jwt_init(&access_token_jwt);
 
-	char *res = jwt_build(JWT_HEADER, access_token_jwt.payload);
-    if(res == NULL) return NULL;
-    
+	char *jwt = jwt_build(JWT_HEADER, access_token_jwt.payload);
+    if(jwt == NULL) return NULL;
+
+    token_buffer = (char*)k_malloc(ACCESS_TOKEN_BODY);
+    snprintf(token_buffer, ACCESS_TOKEN_BODY, "{\"grant_type\": \"urn:ietf:params:oauth:grant-type:jwt-bearer\", \"assertion\": \"%s\"}", jwt);
+    body_len = strlen(token_buffer);
+    k_free(jwt);
+
     modem_ret = start_http_client();
     if(modem_ret != MODEM_SUCCESS){
         stop_http_client();
-        k_free(res);
+        k_free(token_buffer);
         return NULL;
     }
-
-    char body[ACCESS_TOKEN_BODY];
-    size_t body_len;
-    snprintf(body, ACCESS_TOKEN_BODY, "{\"grant_type\": \"urn:ietf:params:oauth:grant-type:jwt-bearer\", \"assertion\": \"%s\"}", res);
-    body_len = strlen(body);
-    k_free(res);
-
-    modem_ret = send_http_post(ACCESS_TOKEN_URL, ACCESS_TOKEN_CONTENT_TYPE, body, body_len, NULL);
+ 
+    modem_ret = send_http_post(ACCESS_TOKEN_URL, ACCESS_TOKEN_CONTENT_TYPE, token_buffer, body_len, NULL);
     if(modem_ret != MODEM_SUCCESS){
         stop_http_client();
+        k_free(token_buffer);
         return NULL;
     } 
 
-    char *access_token = (char*)k_malloc(ACCESS_TOKEN_SIZE);
-    if(access_token) modem_ret = read_http_response(access_token);
+    if(read_http_response(token_buffer) != MODEM_SUCCESS) {
+        k_free(token_buffer);
+        token_buffer = NULL;
+    }
 
     stop_http_client();
-    return (const char*)access_token;
+
+    return token_buffer;
 }
 
 /*
