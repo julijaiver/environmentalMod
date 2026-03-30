@@ -115,7 +115,7 @@ modem_status_t stop_http_client(){
 }
 
 modem_status_t read_http_response(char *res){
-    int ret, response_len;
+    int ret, response_len = 0;
     char response[1024 * 2];
     char cmd[50];
     char *full_response = (char*)k_malloc(1024 * 2);
@@ -316,9 +316,9 @@ modem_status_t stop_tcp_socket(void){
 }
 
 modem_status_t send_tcp_post_request(const char* request, size_t len){
-    char cmd[2048];
+    char cmd[64];
 
-    snprintf(cmd, 2048, "AT+CCHSEND=0, %u", len);
+    snprintf(cmd, 64, "AT+CCHSEND=0, %u", len);
     if(!send_at_command(cmd, ">", AT_RESPONSE_TIMEOUT));
     
     k_msleep(100);
