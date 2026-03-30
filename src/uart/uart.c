@@ -62,6 +62,13 @@ void print_uart(const char *buf)
 	}
 }
 
+void send_uart(const char *buf, size_t len)
+{
+	while(len--) {
+		uart_poll_out(uart_dev, *buf++);
+	}
+}
+
 int uart_init(void)
 {
 	if (!device_is_ready(uart_dev)) {
