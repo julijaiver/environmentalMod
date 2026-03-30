@@ -1,3 +1,4 @@
+#include <zephyr/sys/base64.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +24,7 @@ const char* cloud_request_access_token(void) {
 	jwt_init(&access_token_jwt);
 
 	char *res = jwt_build(JWT_HEADER, access_token_jwt.payload);
-    if(res == NULL) return;
+    if(res == NULL) return NULL;
     
     modem_ret = start_http_client();
     if(modem_ret != MODEM_SUCCESS){
@@ -66,13 +67,21 @@ int cloud_publish(const char *access_token, const char *data){
     char chunk[2048+1];
     size_t chunk_len;
 
-    size_t data_len = strlen(data);
-    char *encoded_data = base64_encrypt(data, data_len, 0);
+    // first use full request as tmp during base64 encoding
+    size_t data_len = 0;
+    char *encoded_data = full_request;
+    if(base64_encode(encoded_data, FULL_REQUEST_SIZE, &data_len, data, strlen(data))) {
+        k_free(full_request);
+        k_free(request_body);
+        return -999; // out of memory - should never happen
+    }
+    encoded_data[data_len] = 0; // nul-terminate
     
+    // form request body from encoded data
     snprintf(request_body, REQUEST_BODY_SIZE, CLOUD_REQUEST_BODY, encoded_data);
     size_t body_len = strlen(request_body);
-    k_free(encoded_data);
     
+    // form full request from requset body and access token
     snprintf(full_request, FULL_REQUEST_SIZE, CLOUD_REQUEST_TEMPLATE, body_len, access_token, request_body);
     size_t req_len = strlen(full_request);
     
