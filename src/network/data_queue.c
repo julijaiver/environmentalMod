@@ -12,13 +12,14 @@ LOG_MODULE_REGISTER(cloud_send, CONFIG_MODEM_MODULES_LOG_LEVEL);
 
 static void cloud_send(void *p1, void *p2, void *p3);
 
+#define CLOUD_SEND_STACK_SIZE    16384  // 8192
 #define CLOUD_SEND_THREAD_PRIORITY 7
 #define CLOUD_WAKEUP_EVENT 1
 #define CLOUD_WAKEUP_PERIOD 60
 
 K_MSGQ_DEFINE(transmit_queue, sizeof(struct sensor_data), DATA_QUEUE_LENGTH, 1);
 
-K_THREAD_DEFINE(cloud_send_thread, 8192, cloud_send, NULL, NULL, NULL, CLOUD_SEND_THREAD_PRIORITY, 0, 0);
+K_THREAD_DEFINE(cloud_send_thread, CLOUD_SEND_STACK_SIZE, cloud_send, NULL, NULL, NULL, CLOUD_SEND_THREAD_PRIORITY, 0, 0);
 
 K_EVENT_DEFINE(cloud_events);
 
@@ -74,7 +75,7 @@ static int teros12_to_json(struct sensor_data *data, char *json_buf, int size)
 {
     double raw = data->teros.vwc;
     double vwc = 6.771e-10 * pow(raw, 3) - 5.105e-6 * pow(raw, 2) + 1.302e-2 * raw -10.848;
-    
+
     return snprintf(json_buf, size,
              "{\"id\":\"%s\",\"ts\":%ld,\"vwc\":%.2f,\"t\":%.2f,\"ec\":%.2f,\"raw\":%.2f}",
              data->id, (long int)data->timestamp,
