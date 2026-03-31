@@ -186,8 +186,9 @@ modem_status_t read_http_response(char *res){
 * @return Status code for modem
 */
 modem_status_t send_http_post(const char *url, const char *content_type, const char *data, size_t data_len, char *headers){
-	char cmd[1024 * 8];
+	char cmd[1024 * 2];
     size_t cmd_len = sizeof(cmd);
+    if(data_len > cmd_len - 64) return MODEM_ERR_HTTP_DATA_LEN;
  
     snprintf(cmd, cmd_len, "AT+HTTPPARA=\"URL\", %s", url);
     if(!send_at_command(cmd, "OK", AT_RESPONSE_TIMEOUT)) return MODEM_ERR_HTTP_URL;
