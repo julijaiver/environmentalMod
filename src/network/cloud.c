@@ -39,7 +39,7 @@ const char* cloud_request_access_token(void) {
         k_free(token_buffer);
         return NULL;
     }
- 
+    //printk("Token req: %u\n", body_len);
     modem_ret = send_http_post(ACCESS_TOKEN_URL, ACCESS_TOKEN_CONTENT_TYPE, token_buffer, body_len, NULL);
     if(modem_ret != MODEM_SUCCESS){
         stop_http_client();

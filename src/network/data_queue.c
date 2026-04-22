@@ -12,7 +12,7 @@ LOG_MODULE_REGISTER(cloud_send, CONFIG_MODEM_MODULES_LOG_LEVEL);
 
 static void cloud_send(void *p1, void *p2, void *p3);
 
-#define CLOUD_SEND_STACK_SIZE    16384  // 8192
+#define CLOUD_SEND_STACK_SIZE 16384 // 8192
 #define CLOUD_SEND_THREAD_PRIORITY 7
 #define CLOUD_WAKEUP_EVENT 1
 #define CLOUD_WAKEUP_PERIOD 60
@@ -65,29 +65,29 @@ void cloud_send_notify(struct k_timer *timer)
 static int ruuvi_tag_to_json(struct sensor_data *data, char *json_buf, int size)
 {
     return snprintf(json_buf, size,
-             "{\"mac\":\"%s\",\"ts\":%ld,\"t\":%.2f,\"h\":%.2f,\"p\":%.2f,\"bv\":%.2f}",
-             data->id, (long int)data->timestamp,
-             (double)data->ruuvi.temperature, (double)data->ruuvi.humidity,
-             (double)data->ruuvi.pressure, (double)data->ruuvi.bat_voltage);
+                    "{\"mac\":\"%s\",\"ts\":%ld,\"t\":%.2f,\"h\":%.2f,\"p\":%.2f,\"bv\":%.2f}",
+                    data->id, (long int)data->timestamp,
+                    (double)data->ruuvi.temperature, (double)data->ruuvi.humidity,
+                    (double)data->ruuvi.pressure, (double)data->ruuvi.bat_voltage);
 };
 
 static int teros12_to_json(struct sensor_data *data, char *json_buf, int size)
 {
     double raw = data->teros.vwc;
-    double vwc = 6.771e-10 * pow(raw, 3) - 5.105e-6 * pow(raw, 2) + 1.302e-2 * raw -10.848;
+    double vwc = 6.771e-10 * pow(raw, 3) - 5.105e-6 * pow(raw, 2) + 1.302e-2 * raw - 10.848;
 
     return snprintf(json_buf, size,
-             "{\"id\":\"%s\",\"ts\":%ld,\"vwc\":%.2f,\"t\":%.2f,\"ec\":%.2f,\"raw\":%.2f}",
-             data->id, (long int)data->timestamp,
-             vwc, (double)data->teros.temp, (double)data->teros.ec, raw);
+                    "{\"id\":\"%s\",\"ts\":%ld,\"vwc\":%.2f,\"t\":%.2f,\"ec\":%.2f,\"raw\":%.2f}",
+                    data->id, (long int)data->timestamp,
+                    vwc, (double)data->teros.temp, (double)data->teros.ec, raw);
 };
 
-
 // cloud send is based on assumption that a single measurement is less than this size
-#define JSON_ELEMENT_MAX_SIZE  256
+#define JSON_ELEMENT_MAX_SIZE 256
 // margin for closing the JSON array of measurements and comma between array elements
 #define JSON_MARGIN 16
 
+#ifdef CONFIG_CLOUD_SEND_4G
 static void cloud_send(void *p1, void *p2, void *p3)
 {
     struct sensor_data data;
@@ -113,7 +113,8 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 while (json_pos + JSON_ELEMENT_MAX_SIZE + JSON_MARGIN < sizeof(json_msg) && k_msgq_peek_at(&transmit_queue, &data, msg_count) == 0)
                 {
                     LOG_INF("%s %u", data.id, (unsigned int)data.timestamp);
-                    if(msg_count > 0) { // add comma before element if this is not the first element
+                    if (msg_count > 0)
+                    { // add comma before element if this is not the first element
                         strcat(json_msg + json_pos, ",");
                         ++json_pos;
                     }
@@ -130,7 +131,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     }
                     ++msg_count;
                 }
-                json_pos += snprintf(json_msg + json_pos, sizeof(json_msg)-json_pos, "]}");
+                json_pos += snprintf(json_msg + json_pos, sizeof(json_msg) - json_pos, "]}");
                 LOG_INF("JSON: %d, %d", msg_count, json_pos);
                 int result = cloud_publish(access_token, json_msg);
 
@@ -138,9 +139,9 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 {
                     fail_count = 0;
                     // remove message from queue after transmit - should always succeed because we already peeked the message
-                    while(msg_count > 0) 
+                    while (msg_count > 0)
                     {
-                        if(k_msgq_get(&transmit_queue, &data, K_NO_WAIT) == 0)
+                        if (k_msgq_get(&transmit_queue, &data, K_NO_WAIT) == 0)
                             --msg_count;
                         else
                             LOG_ERR("No message after succesfull peek");
@@ -152,7 +153,8 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     LOG_INF("Send failed: %d", fail_count);
                 }
             }
-            if(access_token == NULL) LOG_INF("No access token");
+            if (access_token == NULL)
+                LOG_INF("No access token");
 
             k_free((void *)access_token);
         }
@@ -160,3 +162,71 @@ static void cloud_send(void *p1, void *p2, void *p3)
         modem_power_off();
     }
 }
+#endif
+
+#ifdef CONFIG_CLOUD_SEND_LORA
+static void cloud_send(void *p1, void *p2, void *p3)
+{
+    struct sensor_data data;
+    k_timer_start(&cloud_send_timer, K_MINUTES(CLOUD_WAKEUP_PERIOD), K_MINUTES(CLOUD_WAKEUP_PERIOD));
+
+    while (true)
+    {
+        int fail_count = 0;
+        k_event_wait(&cloud_events, CLOUD_WAKEUP_EVENT, true, K_FOREVER);
+        LOG_INF("wakeup");
+        // with LoRa we should send one message at a time
+        while (fail_count < CLOUD_SEND_RETRY_COUNT && k_msgq_num_used_get(&transmit_queue) > 0)
+        {
+            static char json_msg[2048];
+            int msg_count = 0;
+            int json_pos = 0;
+            json_pos = snprintf(json_msg, sizeof(json_msg), "{\"measurements\":[");
+            // peek first and remove only after successfull transmit
+            while (json_pos + JSON_ELEMENT_MAX_SIZE + JSON_MARGIN < sizeof(json_msg) && k_msgq_peek_at(&transmit_queue, &data, msg_count) == 0)
+            {
+                LOG_INF("%s %u", data.id, (unsigned int)data.timestamp);
+                if (msg_count > 0)
+                { // add comma before element if this is not the first element
+                    strcat(json_msg + json_pos, ",");
+                    ++json_pos;
+                }
+                switch (data.type)
+                {
+                case TYPE_RUUVI_TAG:
+                    json_pos += ruuvi_tag_to_json(&data, json_msg + json_pos, JSON_ELEMENT_MAX_SIZE);
+                    break;
+                case TYPE_TEROS12:
+                    json_pos += teros12_to_json(&data, json_msg + json_pos, JSON_ELEMENT_MAX_SIZE);
+                    break;
+                default:
+                    LOG_INF("Unknown data type in queue");
+                }
+                ++msg_count;
+            }
+            json_pos += snprintf(json_msg + json_pos, sizeof(json_msg) - json_pos, "]}");
+            LOG_INF("JSON: %d, %d", msg_count, json_pos);
+            int result = MODEM_SUCCESS; // this where we send to cloud
+
+            if (result == MODEM_SUCCESS)
+            {
+                fail_count = 0;
+                // remove message from queue after transmit - should always succeed because we already peeked the message
+                while (msg_count > 0)
+                {
+                    if (k_msgq_get(&transmit_queue, &data, K_NO_WAIT) == 0)
+                        --msg_count;
+                    else
+                        LOG_ERR("No message after succesfull peek");
+                }
+            }
+            else
+            {
+                ++fail_count;
+                LOG_INF("Send failed: %d", fail_count);
+            }
+        }
+    }
+}
+
+#endif

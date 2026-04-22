@@ -49,6 +49,7 @@ uint16_t setup(struct tm *time){
 		printk("Failed to configure modem GPIO: %d\n", ret);
 		err |= ERR_MODEM_GPIO;
 	}
+#ifdef CONFIG_CLOUD_SEND_4G
 	printk("Starting modem\n");
 	modem_pin_set(1);
 	k_msleep(1000*15);
@@ -73,7 +74,7 @@ uint16_t setup(struct tm *time){
 			}
 		}
 	}
-
+#endif
 	if(err != ERR_NONE){
 		print_errors(err);
 	}

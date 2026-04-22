@@ -1,0 +1,15 @@
+# Copyright (c) 2026 Metropolia AMK
+# SPDX-License-Identifier: Apache-2.0
+source "Kconfig.zephyr"
+
+config SDI12
+	bool "Enable SDI-12 interface"
+
+config RUUVI_TAG
+	bool "Enable RuuviTag scanning"
+	
+config CLOUD_SEND_4G
+	bool "Use 4G-modem to send data"
+
+config CLOUD_SEND_LORA
+	bool "Use LoRaWAN to send data"
