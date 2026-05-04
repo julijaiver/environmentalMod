@@ -91,7 +91,7 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                 LOG_INF("Response timeout");
             }
         }
-        else if (data.type = TYPE_SOLYX14)
+        else if (data.type == TYPE_SOLYX14)
         {
             sdi12_cmd("0XR0!", true);
             if (sdi12_wait_for(response, sizeof(response), "0XR0!0") > 0)
