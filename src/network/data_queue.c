@@ -82,6 +82,15 @@ static int teros12_to_json(struct sensor_data *data, char *json_buf, int size)
                     vwc, (double)data->teros.temp, (double)data->teros.ec, raw);
 };
 
+
+static int solyx14_to_json(struct sensor_data *data, char *json_buf, int size)
+{
+    return snprintf(json_buf, size,
+                    "{\"id\":\"%s\",\"ts\":%ld,\"perm\":%.2f,\"t\":%.2f,\"ec\":%.2f}",
+                    data->id, (long int)data->timestamp,
+                    (double)data->solyx.perm, (double)data->solyx.temp, (double)data->solyx.ec);
+};
+
 // cloud send is based on assumption that a single measurement is less than this size
 #define JSON_ELEMENT_MAX_SIZE 256
 // margin for closing the JSON array of measurements and comma between array elements
@@ -199,6 +208,9 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 case TYPE_TEROS12:
                     json_pos += teros12_to_json(&data, json_msg + json_pos, JSON_ELEMENT_MAX_SIZE);
                     break;
+                case TYPE_SOLYX14:
+                    json_pos += solyx14_to_json(&data, json_msg + json_pos, JSON_ELEMENT_MAX_SIZE);
+                    break;
                 default:
                     LOG_INF("Unknown data type in queue");
                 }
@@ -207,6 +219,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
             json_pos += snprintf(json_msg + json_pos, sizeof(json_msg) - json_pos, "]}");
             LOG_INF("JSON: %d, %d", msg_count, json_pos);
             int result = MODEM_SUCCESS; // this where we send to cloud
+            printk("%s\n", json_msg);
 
             if (result == MODEM_SUCCESS)
             {

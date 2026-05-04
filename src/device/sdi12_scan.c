@@ -37,44 +37,92 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                 data.id[sizeof(data.id) - 1] = 0;           // ensure termination
                 data.id[strcspn(data.id, " ")] = '-';       // replace space with dash
                 data.id[strcspn(data.id, "\n\r")] = 0;      // remove CR/LF
+                data.type = TYPE_TEROS12;
+            }
+            // record sensor id
+            str = strstr(response, "METER   SLYX14");
+            if (str)
+            {
+                strncpy(data.id, str + 8, sizeof(data.id)); // copy string starting from "TER"
+                data.id[sizeof(data.id) - 1] = 0;           // ensure termination
+                data.id[strcspn(data.id, " ")] = '-';       // replace space with dash
+                data.id[strcspn(data.id, "\n\r")] = 0;      // remove CR/LF
+                data.type = TYPE_SOLYX14;
             }
         }
-        else {
+        else
+        {
             k_msleep(2000);
         }
     } while (str == NULL);
 
     while (true)
     {
-        sdi12_cmd("0R0!", true);
-        if (sdi12_wait_for(response, sizeof(response), "0R0!0") > 0)
+        if (data.type == TYPE_TEROS12)
         {
-            // extract values
-            char *rsp = strstr(response, "0R0!0");
-            if (!rsp)
+            sdi12_cmd("0R0!", true);
+            if (sdi12_wait_for(response, sizeof(response), "0R0!0") > 0)
             {
-                LOG_ERR("No match found");
-                continue; // should not happens since wait_for found a match
-            }
-            int rv = sscanf(rsp + 5, "%f%f%f", &data.teros.vwc, &data.teros.temp, &data.teros.ec);
-            if (rv == 3)
-            {
-                // with single sensor the id is set during init, jsut set timestamp
-                data.timestamp = time(NULL);
-                // teros 12
-                if (data_put(&data) < 0)
+                // extract values
+                char *rsp = strstr(response, "0R0!0");
+                if (!rsp)
                 {
-                    LOG_ERR("Failed to queue data");
+                    LOG_ERR("No match found");
+                    continue; // should not happens since wait_for found a match
+                }
+                int rv = sscanf(rsp + 5, "%f%f%f", &data.teros.vwc, &data.teros.temp, &data.teros.ec);
+                if (rv == 3)
+                {
+                    // with single sensor the id is set during init, jsut set timestamp
+                    data.timestamp = time(NULL);
+                    // teros 12
+                    if (data_put(&data) < 0)
+                    {
+                        LOG_ERR("Failed to queue data");
+                    }
+                }
+                else
+                {
+                    LOG_ERR("Data parse failed");
                 }
             }
             else
             {
-                LOG_ERR("Data parse failed");
+                LOG_INF("Response timeout");
             }
         }
-        else
+        else if (data.type = TYPE_SOLYX14)
         {
-            LOG_INF("Response timeout");
+            sdi12_cmd("0XR0!", true);
+            if (sdi12_wait_for(response, sizeof(response), "0XR0!0") > 0)
+            {
+                // extract values
+                char *rsp = strstr(response, "0XR0!0");
+                if (!rsp)
+                {
+                    LOG_ERR("No match found");
+                    continue; // should not happens since wait_for found a match
+                }
+                int rv = sscanf(rsp + 6, "%f%f%f", &data.solyx.perm, &data.solyx.temp, &data.solyx.ec);
+                if (rv == 3)
+                {
+                    // with single sensor the id is set during init, just set timestamp
+                    data.timestamp = time(NULL);
+                    // teros 12
+                    if (data_put(&data) < 0)
+                    {
+                        LOG_ERR("Failed to queue data");
+                    }
+                }
+                else
+                {
+                    LOG_ERR("Data parse failed");
+                }
+            }
+            else
+            {
+                LOG_INF("Response timeout");
+            }
         }
 
         k_msleep(MEASURE_CYCLE_SLEEP);

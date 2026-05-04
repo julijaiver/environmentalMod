@@ -5,6 +5,7 @@
 
 #define  TYPE_RUUVI_TAG  0
 #define  TYPE_TEROS12    1
+#define  TYPE_SOLYX14    2
 
 struct ruuvi_tag {
     float temperature;
@@ -19,6 +20,11 @@ struct teros12 {
     float ec;
 };
 
+struct solyx14 {
+    float perm;
+    float temp;
+    float ec;
+};
 
 struct sensor_data {
     int type;
@@ -27,6 +33,7 @@ struct sensor_data {
     union {
         struct ruuvi_tag ruuvi;
         struct teros12 teros;
+        struct solyx14 solyx;
     };
 
 };
