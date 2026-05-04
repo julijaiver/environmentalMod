@@ -135,6 +135,9 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     case TYPE_TEROS12:
                         json_pos += teros12_to_json(&data, json_msg + json_pos, JSON_ELEMENT_MAX_SIZE);
                         break;
+                    case TYPE_SOLYX14:
+                        json_pos += solyx14_to_json(&data, json_msg + json_pos, JSON_ELEMENT_MAX_SIZE);
+                        break;
                     default:
                         LOG_INF("Unknown data type in queue");
                     }
