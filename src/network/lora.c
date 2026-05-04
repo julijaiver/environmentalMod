@@ -87,6 +87,12 @@ void stStateTemplate(smi *sm, const event *e)
 }
 #endif
 
+#define LORA_THREAD_PRIORITY  7
+#define LORA_THREAD_STACK_SIZE   4096
+
+static void lora_thread(void *p1, void *p2, void *p3);
+
+K_THREAD_DEFINE(lora_send_thread, LORA_THREAD_STACK_SIZE, lora_thread, NULL, NULL, NULL, LORA_THREAD_PRIORITY, 0, 0);
 
 void stInit(smi *sm, const event *e);
 void stMode(smi *sm, const event *e);
@@ -115,6 +121,9 @@ static void lora_tick(struct k_timer *timer)
 {
 	ARG_UNUSED(timer);
 	int rc = k_msgq_put(&lora_event_queue, &evTick, K_NO_WAIT);
+	if(rc) {
+		LOG_ERR("Queue error (tick)");
+	}
 }
 
 /* Callback when modem pipe receives data */
@@ -255,14 +264,26 @@ int lora_write(smi *sm, const char *str)
 int lora_wait_for(smi *sm, const char *expect[])
 {
 	int ret = -1; // return code for incomplete line 
+	int len = 0;
+
+	// todo: check if pos (=lenght) and end of string (nul) don't match
+	// in case of mismatch move data after (nul) to beginning of buffer and adjust pos accordingly 
+	len = strlen(sm->buffer);
+	if(len < sm->pos) {
+		memmove(sm->buffer, sm->buffer + len + 1, sm->pos - len);
+		sm->pos -= len + 1;
+		LOG_INF("Pending: %s", sm->buffer);
+	}
 
 	lora_read(sm);
 
 	int dist = strcspn(sm->buffer, "\n");		
 	if (dist < sm->pos) // there is a linefeed 
 	{
-		sm->buffer[dist] = '\0'; // get rid of linefeed
-		LOG_INF("Response: %s", sm->buffer);
+		 // get rid of linefeed to match only up to linefeed
+		 // there may be some data after the linefeed so don't adjust pos
+		sm->buffer[dist] = '\0';
+		LOG_INF("Response: [%d] %s", sm->pos - dist - 1, sm->buffer);
 		for(int i = 0; expect[i] != NULL; ++i) {
 			// break if expected string was found 
 			if (strstr(sm->buffer, expect[i])) {
@@ -270,20 +291,22 @@ int lora_wait_for(smi *sm, const char *expect[])
 				break;
 			}
 		}
-		if(ret < 0) ret = -2; // return code for full line but no match
+		if(ret < 0) ret = -2; // return code for finding linefeed but no match
 
-		// todo: moving can't be done before returning - we must let user handle the data after returning from this function
-		if(sm->pos - dist > 1) { // we have unhandled data after the linefeed move it to beginning of buffer
-			memmove(sm->buffer, sm->buffer + dist + 1, sm->pos - dist);
-			sm->pos -= dist + 1;
-			LOG_INF("Pending: %s", sm->buffer);
-		}
-		else {
-			// receive ended with line feed --> everything has been handled
+		if(sm->pos - dist <= 1) { 
+			// receive ended with line feed --> no pending data
 			sm->pos = 0;
 			// the data is still left in the buffer so that caller can handle the completed line.
 		} 
+		else {
+			// there is pending data - it possible that there is another full line pending so trigger receive event to ensure that is gets handled
+			// this happens often with multiline responses from the module
+			event ev = { eReceive, 0, NULL, NULL };
+			if(k_msgq_put(&lora_event_queue, &ev, K_NO_WAIT) < 0) {
+				LOG_ERR("Event queue error");
+			}
 
+		}
 	}
 
 	LOG_INF("Ridx: %d", ret);
@@ -295,19 +318,24 @@ int lora_wait_for(smi *sm, const char *expect[])
 static void lora_thread(void *p1, void *p2, void *p3)
 {
 	event ev;
-	smi *sm; // need to initialixze this with something
-	k_timer_start(&lora_tick_timer, K_MSEC(1000), K_MSEC(1000));
+	smi sm = { stInit, stInit, 0, 0, 0 };
 
+	lora_init();
+
+	sm.state(&sm, &evEnter); // initialize sate machine
+
+	k_timer_start(&lora_tick_timer, K_MSEC(1000), K_MSEC(1000));
+	
 	while (true)
 	{
 		if (k_msgq_get(&lora_event_queue, &ev, K_FOREVER) == 0)
 		{
 			// handle event
-			sm->state(sm, &ev); // dispatch event to current state
-			if(sm->state != sm->next_state) { // check if state was changed
-				sm->state(sm, &evExit); // exit old state (cleanup)
-				sm->state = sm->next_state; // change state
-				sm->state(sm, &evEnter); // enter new state
+			sm.state(&sm, &ev); // dispatch event to current state
+			if(sm.state != sm.next_state) { // check if state was changed
+				sm.state(&sm, &evExit); // exit old state (cleanup)
+				sm.state = sm.next_state; // change state
+				sm.state(&sm, &evEnter); // enter new state
 			}
 
 		}
@@ -364,7 +392,7 @@ void stMode(smi *sm, const event *e)
 		break;
 	case eReceive:
 		if(lora_wait_for(sm, expect)==0) {
-			TRAN(stMode);
+			TRAN(stClass);
 		}
 		break;
 	default:
@@ -458,7 +486,7 @@ void stPort(smi *sm, const event *e)
 
 void stJoin(smi *sm, const event *e)
 {
-	const char *expect[] = { "+JOIN: Join failed", "+JOIN: LoRaWAN modem is busy", "+JOIN: Done", "+JOIN: Joined already", NULL };
+	const char *expect[] = { "+JOIN: Join failed", "+JOIN: LoRaWAN modem is busy", "+JOIN: Network joined", "+JOIN: Joined already", NULL };
 	int res = -1;
 
 	switch(e->ev) {
@@ -507,7 +535,7 @@ void stClockSync(smi *sm, const event *e)
 	case eExit:
 		break;
 	case eTick:
-		if(++sm->timer > 20) {
+		if(++sm->timer > 30) {
 			lora_write(sm, "AT+LW=DTR\r\n");
 			smClear(sm);
 		}
@@ -518,10 +546,14 @@ void stClockSync(smi *sm, const event *e)
 			lora_write(sm, "AT+CMSGHEX\r\n"); // send dummy message to activate downlink
 		}
 		else if(res == 1) {
+			// when we get a response get time from the module
 			lora_write(sm, "AT+RTC=UTCMS\r\n");
 		}
 		else if(res == 2) {
 			char *tstr = strstr(sm->buffer, "+RTC:") + 5;
+			// module RTC starts at 2020 at boot - we can use this to see it the time was sync'ed
+			// Time is synced only when we get RXWIN with CMSG ack - we don't look for RXWIN at the moment
+			// because if modem already has the current time we get the correct time even without RXWIN
 			if(sscanf(tstr, "%d", &res) == 1 && res >= 2026) {
 				if(lora_set_system_time(tstr)==0) 
 				TRAN(stConnected);
@@ -561,12 +593,12 @@ static int lora_set_system_time(const char *str)
 	struct tm now;
 	if(!str) return -1;
  
-    int year, month, day, hour, min, sec, msec;
+    int year=0, month=0, day=0, hour=0, min=0, sec=0, msec=0;
 	//Format:  " 2026-04-30 12:30:49.465"
-    int parsed = sscanf(str, "%2d-%2d-%2d %2d:%2d:%2d.%d", &year, &month, &day, &hour, &min, &sec, &msec);
+    int parsed = sscanf(str, "%d-%d-%d %d:%d:%d.%d", &year, &month, &day, &hour, &min, &sec, &msec);
 
     if(parsed != 7) {
-        LOG_ERR("Invalid time format");
+        LOG_ERR("Invalid time format: %d", parsed);
         return -2;
     }
 
