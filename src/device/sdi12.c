@@ -6,7 +6,7 @@
 #include <zephyr/modem/backend/uart.h>
 #include <zephyr/modem/pipe.h>
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(sdi12, CONFIG_MODEM_MODULES_LOG_LEVEL);
+LOG_MODULE_REGISTER(sdi12);
 
 #include <stdio.h>
 #include <string.h>
