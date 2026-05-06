@@ -4,7 +4,7 @@
 #include <zephyr/sys/printk.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(ruuvi, CONFIG_MODEM_MODULES_LOG_LEVEL);
+LOG_MODULE_REGISTER(ruuvi);
 
 #include <stdio.h>
 #include <time.h>
