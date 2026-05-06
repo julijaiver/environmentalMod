@@ -3,9 +3,10 @@
 
 #include <time.h>
 
-#define  TYPE_RUUVI_TAG  0
-#define  TYPE_TEROS12    1
-#define  TYPE_SOLYX14    2
+#define  TYPE_UNKNOWN    0
+#define  TYPE_RUUVI_TAG  1
+#define  TYPE_TEROS12    2
+#define  TYPE_SOLYX14    3
 
 struct ruuvi_tag {
     float temperature;
