@@ -10,6 +10,7 @@
 
 #include "nv_params.h"
 #include "data_queue.h"
+#include "sdi12.h"
 
 
 static int cmd_nvs_read_tags(const struct shell *sh, size_t argc, char **argv)
@@ -24,7 +25,8 @@ static int cmd_nvs_read_tags(const struct shell *sh, size_t argc, char **argv)
 
 static int cmd_nvs_tag_add(const struct shell *sh, size_t argc, char **argv)
 {
-    if(argc < 2) return -1;
+    ARG_UNUSED(sh);
+	if(argc < 2) return -1;
    
 	return nvs_tag_add(argv[1]);
 }
@@ -119,3 +121,83 @@ static int cmd_boot_continue(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 SHELL_CMD_REGISTER(continue, NULL, "Continue booting", cmd_boot_continue);
+
+
+//int sdi12_cmd(const char *cmd, bool send_break);
+//int sdi12_wait_for(char *buffer, int size, const char *expect);
+
+static int cmd_sdi12_scan(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	for(int i = 0; i <= 9; ++i) {
+		char cmd[]="0I!";
+		cmd[0] = '0' + i;
+		sdi12_cmd(cmd, true);
+		char buffer[64];
+		if(sdi12_wait_for(buffer, sizeof(buffer), NULL) > 3) {
+			buffer[strcspn(buffer, "\r\n")] = 0;
+			shell_print(sh, "[%s]", buffer);
+		}
+	}
+
+	return 0;
+}
+
+
+static int cmd_sdi12_query(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	sdi12_cmd("?!", true);
+	char buffer[32];
+	if(sdi12_wait_for(buffer, sizeof(buffer), NULL) > 0) {
+		buffer[strcspn(buffer, "\r\n")] = 0;
+		shell_print(sh, "[%s]", buffer);
+	}
+
+	return 0;
+}
+
+static int cmd_sdi12_addr(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	if(argc < 3) return -1;
+	if(!isdigit((int)argv[1][0])) return -2;
+	if(!isdigit((int)argv[2][0])) return -3;
+
+	char cmd[]="0A1!";
+	cmd[0]=argv[1][0];
+	cmd[2]=argv[2][0];
+
+	sdi12_cmd(cmd, true);
+	char buffer[32];
+	if(sdi12_wait_for(buffer, sizeof(buffer), NULL) > 0) {
+		buffer[strcspn(buffer, "\r\n")] = 0;
+		shell_print(sh, "[%s]", buffer);
+	}
+
+	return 0;
+}
+
+static int cmd_sdi12_send(const struct shell *sh, size_t argc, char **argv)
+{
+	if(argc < 2) return -1;
+	shell_print(sh, "Faked sending: %s", argv[1]);
+
+	return 0;
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_sdi12,
+    SHELL_CMD(scan, NULL, "Scan SDI-12 bus.", cmd_sdi12_scan),
+    SHELL_CMD(query, NULL, "Query all addresses on the bus", cmd_sdi12_query),
+	SHELL_CMD(addr, NULL, "Write new address to device.", cmd_sdi12_addr),
+	SHELL_CMD(send, NULL, "Send command (any text) to SDI-12 bus.", cmd_sdi12_send),
+	SHELL_SUBCMD_SET_END /* Array terminated. */
+);
+
+SHELL_CMD_REGISTER(sdi12, &sub_sdi12, "SDI-12 commands: scan, addr, send", NULL);
