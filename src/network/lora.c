@@ -6,12 +6,13 @@
 #include <zephyr/modem/backend/uart.h>
 #include <zephyr/modem/pipe.h>
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(lora, CONFIG_MODEM_MODULES_LOG_LEVEL);
+LOG_MODULE_REGISTER(lora);
 
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
+#include "common.h"
 
 #define DEV_LORA DEVICE_DT_GET(DT_NODELABEL(uart0))
 
@@ -557,6 +558,7 @@ void stClockSync(smi *sm, const event *e)
 			if(sscanf(tstr, "%d", &res) == 1 && res >= 2026) {
 				if(lora_set_system_time(tstr)==0) 
 				TRAN(stConnected);
+				CLOCK_SYNCED();
 			}
 		}
 		break;
