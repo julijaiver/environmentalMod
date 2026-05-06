@@ -3,7 +3,7 @@
 #include <math.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(cloud_send, CONFIG_MODEM_MODULES_LOG_LEVEL);
+LOG_MODULE_REGISTER(cloud_send);
 
 #include "device.h"
 #include "modem.h"
