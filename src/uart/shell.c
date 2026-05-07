@@ -11,6 +11,7 @@
 #include "nv_params.h"
 #include "data_queue.h"
 #include "sdi12.h"
+#include "common.h"
 
 
 static int cmd_nvs_read_tags(const struct shell *sh, size_t argc, char **argv)
@@ -95,8 +96,7 @@ static int cmd_thread_info(const struct shell *sh, size_t argc, char **argv)
 }
 SHELL_CMD_REGISTER(stat, NULL, "Print thread statistics", cmd_thread_info);
 
-void boot_halt(void);
-void boot_continue(void);
+
 
 static int cmd_boot_halt(const struct shell *sh, size_t argc, char **argv)
 {

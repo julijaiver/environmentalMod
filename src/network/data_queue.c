@@ -9,6 +9,7 @@ LOG_MODULE_REGISTER(cloud_send);
 #include "modem.h"
 #include "cloud.h"
 #include "data_queue.h"
+#include "common.h"
 
 static void cloud_send(void *p1, void *p2, void *p3);
 
@@ -100,6 +101,9 @@ static int solyx14_to_json(struct sensor_data *data, char *json_buf, int size)
 static void cloud_send(void *p1, void *p2, void *p3)
 {
     struct sensor_data data;
+
+    BOOT_WAIT();
+
     k_timer_start(&cloud_send_timer, K_MINUTES(CLOUD_WAKEUP_PERIOD), K_MINUTES(CLOUD_WAKEUP_PERIOD));
 
     while (true)
@@ -180,6 +184,9 @@ static void cloud_send(void *p1, void *p2, void *p3)
 static void cloud_send(void *p1, void *p2, void *p3)
 {
     struct sensor_data data;
+
+    BOOT_WAIT();
+
     k_timer_start(&cloud_send_timer, K_MINUTES(CLOUD_WAKEUP_PERIOD), K_MINUTES(CLOUD_WAKEUP_PERIOD));
 
     while (true)

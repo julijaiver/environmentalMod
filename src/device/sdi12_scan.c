@@ -95,7 +95,7 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                         LOG_ERR("No match found");
                         continue; // should not happens since wait_for found a match
                     }
-                    int rv = sscanf(rsp + 5, "%f%f%f", &sensors[i].data.teros.vwc, &sensors[i].data.teros.temp, &sensors[i].data.teros.ec);
+                    int rv = sscanf(rsp + strlen(expect), "%f%f%f", &sensors[i].data.teros.vwc, &sensors[i].data.teros.temp, &sensors[i].data.teros.ec);
                     if (rv == 3)
                     {
                         // the id is set during init, just set timestamp
@@ -130,7 +130,7 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                         LOG_ERR("No match found");
                         continue; // should not happens since wait_for found a match
                     }
-                    int rv = sscanf(rsp + 6, "%f%f%f", &sensors[i].data.solyx.perm, &sensors[i].data.solyx.temp, &sensors[i].data.solyx.ec);
+                    int rv = sscanf(rsp + strlen(expect), "%f%f%f", &sensors[i].data.solyx.perm, &sensors[i].data.solyx.temp, &sensors[i].data.solyx.ec);
                     if (rv == 3)
                     {
                         // with single sensor the id is set during init, just set timestamp

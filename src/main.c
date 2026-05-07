@@ -47,11 +47,11 @@ int main(void)
 	struct tm rtc_time;
 
 	nv_params_init();
-#if 0
+#if 1
 	printk("Type \"stop\" to stop boot\n");
 
-	if(k_event_wait(&envisens_events, BOOT_HALT_EVENT | BOOT_CONTINUE_EVENT, true, K_SECONDS(30)) == BOOT_HALT_EVENT) {
-		k_event_wait(&envisens_events, BOOT_CONTINUE_EVENT, true, K_FOREVER);
+	if(k_event_wait(&envisens_events, BOOT_HALT_EVENT, true, K_SECONDS(30)) == BOOT_HALT_EVENT) {
+		BOOT_WAIT();
 	}
 	
 #endif
@@ -73,7 +73,7 @@ int main(void)
 										   SDI12_THREAD_PRIORITY, 0, K_NO_WAIT);
 	k_thread_name_set(sdi12_scan_thread_id, "sdi12_scan");
 #endif
-#if CONFIG_RUUVI_SCAN
+#if CONFIG_RUUVI_TAG
 	ruuvi_scan_thread_id = k_thread_create(&ruuvi_scan_thread_data, ruuvi_stack_area,
 										   K_THREAD_STACK_SIZEOF(ruuvi_stack_area),
 										   ruuvi_scan_thread,

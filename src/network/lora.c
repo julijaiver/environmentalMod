@@ -323,6 +323,8 @@ static void lora_thread(void *p1, void *p2, void *p3)
 
 	lora_init();
 
+	BOOT_WAIT();
+
 	sm.state(&sm, &evEnter); // initialize sate machine
 
 	k_timer_start(&lora_tick_timer, K_MSEC(1000), K_MSEC(1000));

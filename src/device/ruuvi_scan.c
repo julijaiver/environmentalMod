@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(ruuvi);
 #include "data_queue.h"
 #include "nv_params.h"
 #include "ruuvitag.h"
+#include "common.h"
 
 struct k_event ruuvi_tag_scan_event;
 
@@ -86,6 +87,10 @@ void ruuvi_scan_thread(void *arg0, void *arg1, void *arg2)
             return; // end thread if BT doesn't work
         }
     }
+
+    BOOT_WAIT();
+
+    CLOCK_WAIT();
 
     k_event_init(&ruuvi_tag_scan_event);
     nvs_read_tags();
