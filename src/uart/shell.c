@@ -12,6 +12,7 @@
 #include "data_queue.h"
 #include "sdi12.h"
 #include "common.h"
+#include "lora.h"
 
 
 static int cmd_nvs_read_tags(const struct shell *sh, size_t argc, char **argv)
@@ -187,7 +188,12 @@ static int cmd_sdi12_addr(const struct shell *sh, size_t argc, char **argv)
 static int cmd_sdi12_send(const struct shell *sh, size_t argc, char **argv)
 {
 	if(argc < 2) return -1;
-	shell_print(sh, "Faked sending: %s", argv[1]);
+	sdi12_cmd(argv[1], true);
+	char buffer[32];
+	if(sdi12_wait_for(buffer, sizeof(buffer), NULL) > 0) {
+		buffer[strcspn(buffer, "\r\n")] = 0;
+		shell_print(sh, "[%s]", buffer);
+	}
 
 	return 0;
 }
@@ -201,3 +207,37 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_sdi12,
 );
 
 SHELL_CMD_REGISTER(sdi12, &sub_sdi12, "SDI-12 commands: scan, addr, send", NULL);
+
+
+static int cmd_lora_read(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	char buffer[256] = {0};
+	lora_raw_read(buffer, sizeof(buffer));
+
+	shell_print(sh, "%s", buffer);
+
+	return 0;
+}
+
+static int cmd_lora_write(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	if(argc < 2) return -1;
+	lora_raw_write(argv[1]);
+	lora_raw_write("\r\n");
+	cmd_lora_read(sh, argc, argv);
+
+	return 0;
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_lora,
+    SHELL_CMD(write, NULL, "Scan SDI-12 bus.", cmd_lora_write),
+    SHELL_CMD(read, NULL, "Read pending data.", cmd_lora_read),
+	SHELL_SUBCMD_SET_END /* Array terminated. */
+);
+
+SHELL_CMD_REGISTER(lora, &sub_lora, "lora commands: write, read", NULL);

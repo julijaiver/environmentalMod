@@ -206,9 +206,42 @@ int lora_init(void)
 		return ret;
 	}
 
-	LOG_INF("SDI12 pipe initialized");
+	LOG_INF("LoRa pipe initialized");
 
 	return 0;
+}
+
+int lora_raw_write(const char *str)
+{
+	return modem_pipe_transmit(data.mdm_uart_pipe, (uint8_t *) str, strlen(str));
+}
+
+int lora_raw_read(char *str, int max_len)
+{
+	int ret = -1;
+	int pos = 0;
+	event ev;
+	str[0] = 0;
+	/* Read from modem pipe */
+	do	{
+		k_msgq_get(&lora_event_queue, &ev, K_MSEC(1000));
+
+		int remain = max_len - pos - 1; // leave space for NUL
+		if (remain < 1)
+			return -2; // buffer full
+
+		char *buf = str + pos;
+		ret = modem_pipe_receive(data.mdm_uart_pipe, buf, remain);
+		if (ret > 0)
+		{
+			buf[ret] = 0;
+			pos += ret;
+			LOG_HEXDUMP_DBG(buf, ret, "RCV:");	
+		}
+	} while (ret > 0);
+
+	return pos;
+
 }
 
 int lora_flush(smi *sm)
