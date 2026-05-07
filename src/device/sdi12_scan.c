@@ -70,6 +70,8 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
 
     sdi12_init();
 
+    BOOT_WAIT();
+
     int sensor_count = sdi12_scan_sensors(sensors, 3);
 
     CLOCK_WAIT();
