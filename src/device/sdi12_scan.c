@@ -132,11 +132,15 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                         LOG_ERR("No match found");
                         continue; // should not happens since wait_for found a match
                     }
-                    int rv = sscanf(rsp + strlen(expect), "%f%f%f", &sensors[i].data.solyx.perm, &sensors[i].data.solyx.temp, &sensors[i].data.solyx.ec);
+                    int rv = sscanf(rsp + strlen(expect), "%f%f%f", &sensors[i].data.solyx.epsr, &sensors[i].data.solyx.temp, &sensors[i].data.solyx.bulk_ec);
                     if (rv == 3)
                     {
                         // with single sensor the id is set during init, just set timestamp
                         sensors[i].data.timestamp = time(NULL);
+                        //calculating vwc and pw_ec values from raw
+                        float epsp = 80.3 - 0.37 * (sensors[i].data.solyx.temp - 20.0);
+                        sensors[i].data.solyx.vwc = 0.0985 * sqrtf(sensors[i].data.solyx.epsr) - 0.159;
+                        sensors[i].data.solyx.pw_ec = (epsp * sensors[i].data.solyx.bulk_ec) / (sensors[i].data.solyx.epsr - 4.1);
                         if (data_put(&sensors[i].data) < 0)
                         {
                             LOG_ERR("Failed to queue data");

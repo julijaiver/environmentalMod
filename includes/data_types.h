@@ -22,9 +22,13 @@ struct teros12 {
 };
 
 struct solyx14 {
-    float perm;
+    //raw values from sensor
+    float epsr;
     float temp;
-    float ec;
+    float bulk_ec;
+    //calulated values
+    float vwc;
+    float pw_ec;
 };
 
 struct sensor_data {
