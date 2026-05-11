@@ -9,7 +9,7 @@
 #include <zephyr/bluetooth/bluetooth.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(nvparams, CONFIG_MODEM_MODULES_LOG_LEVEL);
+LOG_MODULE_REGISTER(nvparams);
 
 #include <stdio.h>
 #include <string.h>
@@ -23,9 +23,9 @@ static struct nvs_fs fs;
 #define NVS_PARTITION_DEVICE	FIXED_PARTITION_DEVICE(NVS_PARTITION)
 #define NVS_PARTITION_OFFSET	FIXED_PARTITION_OFFSET(NVS_PARTITION)
 
-#define BLE_DEVICE_NV_ADDR  1
-#define SDI12_DEVICE_NV_ADDR 2
-
+#define BLE_DEVICE_NV_ADDR   1
+#define SDI12_DEVICE_NV_ADDR  2
+#define MEASUREMENT_INTERVAL_NV_ADDR  3
 
 
 static const bt_addr_t null_bt = {};
@@ -182,4 +182,21 @@ int nvs_write_tags(void)
 	return 0;
 }
 
+
+int nvs_get_interval(void)
+{
+    int interval = -1;
+    int rc = nvs_read(&fs, MEASUREMENT_INTERVAL_NV_ADDR, &interval, sizeof(interval));
+    LOG_DBG("read: %d, interval: %d", rc, interval);
+
+    return interval;
+}
+
+int nvs_set_interval(int interval)
+{
+    int rc = nvs_write(&fs, MEASUREMENT_INTERVAL_NV_ADDR, &interval, sizeof(interval));
+    LOG_DBG("write: %d, interval: %d", rc, interval);
+
+    return interval;
+}
 

@@ -12,5 +12,6 @@ int nvs_read_tags(void);
 int nvs_print_tags(void);
 int nvs_tag_add(const char *tagstr);
 
+int nvs_get_interval(void);
 
 #endif

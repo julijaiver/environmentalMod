@@ -75,7 +75,7 @@ int main(void)
 #endif
 	boot_continue();
 
-	uint16_t err = setup(&rtc_time);
+	uint16_t err = setup(&rtc_time); // this mostly 4G-modem related setup
 
 	while (err != ERR_NONE)
 	{
