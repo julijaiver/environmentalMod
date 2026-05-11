@@ -89,7 +89,7 @@ static int solyx14_to_json(struct sensor_data *data, char *json_buf, int size)
     return snprintf(json_buf, size,
                     "{\"id\":\"%s\",\"ts\":%ld,\"perm\":%.2f,\"t\":%.2f,\"ec\":%.2f}",
                     data->id, (long int)data->timestamp,
-                    (double)data->solyx.perm, (double)data->solyx.temp, (double)data->solyx.ec);
+                    (double)data->solyx.epsr, (double)data->solyx.temp, (double)data->solyx.bulk_ec);
 };
 
 // cloud send is based on assumption that a single measurement is less than this size

@@ -13,6 +13,7 @@ LOG_MODULE_REGISTER(lora);
 #include <time.h>
 
 #include "common.h"
+#include "lora.h"
 
 #define DEV_LORA DEVICE_DT_GET(DT_NODELABEL(uart0))
 
@@ -126,6 +127,15 @@ static void lora_tick(struct k_timer *timer)
 		LOG_ERR("Queue error (tick)");
 	}
 }
+
+// lora payload queue - gets from data_queue.c and handles sending here
+struct lora_payload {
+	uint8_t buf[LORA_PAYLOAD_MAX_LEN];
+	int len;
+};
+
+K_MSGQ_DEFINE(lora_payload_queue, sizeof(struct lora_payload), 4, 1);
+static int lora_send_hex(smi *sm, struct lora_payload *payload);
 
 /* Callback when modem pipe receives data */
 static void modem_pipe_event_handler(struct modem_pipe *pipe, enum modem_pipe_event mdm_event,
@@ -605,6 +615,9 @@ void stClockSync(smi *sm, const event *e)
 
 void stConnected(smi *sm, const event *e)
 {
+	const char *expect[] = { "+CMSGHEX: ACK Received","+CMSGHEX: Done", NULL };
+	int res = -1;
+	struct lora_payload payload;
 
 	switch(e->ev) {
 	case eEnter:
@@ -615,14 +628,54 @@ void stConnected(smi *sm, const event *e)
 	case eExit:
 		break;
 	case eTick:
+		if(sm->count == 0) 
+		{
+			if(k_msgq_peek(&lora_payload_queue, &payload) == 0) 
+			{
+				if (lora_send_hex(sm, &payload) > 0) 
+				{
+					sm->count = 1;
+					sm->timer = 0;
+				}
+			}
+		} else {
+			if(++sm->timer > 30) {
+				if (sm->count >= 3) 
+				{
+					LOG_ERR("Message send failed 3 times, resetting connection");
+					// message not removed to retry again without losing data
+					TRAN(stJoin);
+					return;
+				} else {
+					if (k_msgq_peek(&lora_payload_queue, &payload) == 0) {
+						LOG_WRN("No ACK, retrying send");
+						sm->timer = 0;
+						lora_send_hex(sm, &payload);
+						++sm->count;
+					}
+				}
+			}
+		}
 		break;
 	case eReceive:
+		if(sm->count == 0) break; // if any message arrives in idle state
+		res = lora_wait_for(sm, expect);
+
+		if (res == 0) {
+			LOG_INF("Message ACK");
+		}
+		else if(res == 1) {
+			// message sent - remove from queue
+			if(k_msgq_get(&lora_payload_queue, &payload, K_NO_WAIT) == 0) {
+				LOG_INF("Message sent and removed from queue");
+			}
+			sm->count = 0; 
+		}
 		break;
 	default:
 		break;
 	}
 }
-
 
 
 static int lora_set_system_time(const char *str)
@@ -667,4 +720,34 @@ static int lora_set_system_time(const char *str)
     }
 
 	return 0;
+}
+
+static int lora_send_hex(smi *sm, struct lora_payload *payload)
+{
+	if (payload->len <= 0) return -1;
+	//+CMSGHEX: ACK Received
+	//+CMSGHEX: Done    will be expected when sending
+	static char hex_str[2*LORA_PAYLOAD_MAX_LEN + 1]; // 2 chars for 1 byte and null term
+	static char cmd_buf[2*LORA_PAYLOAD_MAX_LEN + 16]; // extra space for cmsghex command
+
+	for(int i = 0; i < payload->len; ++i) {
+		snprintf(hex_str + 2*i, sizeof(hex_str) - (2*i), "%02X", payload->buf[i]);	
+	}
+	LOG_INF("Payload: %d bytes", payload->len);
+	snprintf(cmd_buf, sizeof(cmd_buf), "AT+CMSGHEX=\"%s\"\r\n", hex_str);
+
+	return lora_write(sm, cmd_buf); 
+}
+
+int lora_queue_payload(uint8_t *buf, int len)
+{
+	if (len > LORA_PAYLOAD_MAX_LEN) {
+		LOG_ERR("Payload too long: %d", len);
+		return -1;
+	}
+	struct lora_payload payload;
+	memcpy(payload.buf, buf, len);
+	payload.len = len;
+	
+	return k_msgq_put(&lora_payload_queue, &payload, K_NO_WAIT);
 }
