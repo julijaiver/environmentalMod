@@ -10,6 +10,7 @@ LOG_MODULE_REGISTER(cloud_send);
 #include "cloud.h"
 #include "data_queue.h"
 #include "common.h"
+#include "lora.h"
 
 static void cloud_send(void *p1, void *p2, void *p3);
 
@@ -17,6 +18,11 @@ static void cloud_send(void *p1, void *p2, void *p3);
 #define CLOUD_SEND_THREAD_PRIORITY 7
 #define CLOUD_WAKEUP_EVENT 1
 #define CLOUD_WAKEUP_PERIOD 60
+
+// size of max len for msghex
+//todo: should work with variable id lengths, add byte for id len
+#define RUUVI_ID_LEN 6
+#define SDI12_ID_LEN 13
 
 K_MSGQ_DEFINE(transmit_queue, sizeof(struct sensor_data), DATA_QUEUE_LENGTH, 1);
 
@@ -63,6 +69,7 @@ void cloud_send_notify(struct k_timer *timer)
     k_event_post(&cloud_events, CLOUD_WAKEUP_EVENT);
 }
 
+#ifdef CONFIG_CLOUD_SEND_4G
 static int ruuvi_tag_to_json(struct sensor_data *data, char *json_buf, int size)
 {
     return snprintf(json_buf, size,
@@ -91,6 +98,79 @@ static int solyx14_to_json(struct sensor_data *data, char *json_buf, int size)
                     data->id, (long int)data->timestamp,
                     (double)data->solyx.epsr, (double)data->solyx.temp, (double)data->solyx.bulk_ec);
 };
+#endif
+
+static int get_message_len(const struct sensor_data *data)
+{
+    switch (data->type)
+    {
+    case TYPE_RUUVI_TAG:
+        return 1 + sizeof(uint32_t) + RUUVI_ID_LEN + 4 * sizeof(float);
+    case TYPE_TEROS12:
+        return 1 + sizeof(uint32_t) + SDI12_ID_LEN + 3 * sizeof(float);
+    case TYPE_SOLYX14:
+        return 1 + sizeof(uint32_t) + SDI12_ID_LEN + 5 * sizeof(float);
+    default:
+        return -1;
+    }
+}
+
+// function for payload construction
+static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
+{
+    int pos = 0;
+    uint32_t time = (uint32_t)data->timestamp;
+    //add type and timestamp
+    buf[pos++] = (uint8_t)data->type;
+    memcpy(buf + pos, &time, sizeof(time));
+    pos += sizeof(time);
+
+    //switch for different sensor data 
+    switch (data->type)
+    {
+    case TYPE_RUUVI_TAG:
+        //for MAC, just adding bytes to save space, not string chars
+        sscanf(data->id, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &buf[pos], &buf[pos + 1], &buf[pos + 2], &buf[pos + 3], &buf[pos + 4], &buf[pos + 5]);
+        pos += RUUVI_ID_LEN;
+        memcpy(buf + pos, &data->ruuvi.temperature, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->ruuvi.humidity, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->ruuvi.pressure, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->ruuvi.bat_voltage, sizeof(float));
+        pos += sizeof(float);
+        break;
+    case TYPE_TEROS12:
+        memcpy(buf + pos, data->id, SDI12_ID_LEN);
+        pos += SDI12_ID_LEN;
+        memcpy(buf + pos, &data->teros.vwc, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->teros.temp, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->teros.ec, sizeof(float));
+        pos += sizeof(float);
+        break;
+    case TYPE_SOLYX14:
+        memcpy(buf + pos, data->id, SDI12_ID_LEN);
+        pos += SDI12_ID_LEN;
+        memcpy(buf + pos, &data->solyx.epsr, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->solyx.temp, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->solyx.bulk_ec, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->solyx.vwc, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->solyx.pw_ec, sizeof(float));
+        pos += sizeof(float);
+        break;
+    default:
+        // type error
+        return -1;
+    }
+    return pos; //payload size
+}
 
 // cloud send is based on assumption that a single measurement is less than this size
 #define JSON_ELEMENT_MAX_SIZE 256
@@ -180,7 +260,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
 }
 #endif
 
-#ifdef CONFIG_CLOUD_SEND_LORA
+#if 0
 static void cloud_send(void *p1, void *p2, void *p3)
 {
     struct sensor_data data;
@@ -248,6 +328,109 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 ++fail_count;
                 LOG_INF("Send failed: %d", fail_count);
             }
+        }
+    }
+}
+
+#endif
+
+#ifdef CONFIG_CLOUD_SEND_LORA
+
+//test data 
+static void test_data_timer_cb(struct k_timer *timer) {
+    static float perm = 0.1;
+    static float temp = 20.0;
+    static float ec = 0.5;
+    static float vwc = 0.2;
+    static float pw_ec = 0.123;
+    struct sensor_data test = {
+        .type = TYPE_SOLYX14,
+        .timestamp = time(NULL),
+        .id = "ASF126DHSOLYX140000012",
+        .solyx = {
+            .epsr = perm,
+            .temp = temp,
+            .bulk_ec = ec,
+            .vwc = vwc,
+            .pw_ec = pw_ec
+        } 
+    };
+    perm += 0.1f;
+    temp += 0.5f;
+    ec += 0.2f;
+    vwc += 0.05f;
+    pw_ec += 0.001f;
+    data_put(&test);
+}
+K_TIMER_DEFINE(test_data_timer, test_data_timer_cb, NULL);
+
+static void cloud_send(void *p1, void *p2, void *p3)
+{
+    struct sensor_data data;
+    k_timer_start(&cloud_send_timer, K_MINUTES(CLOUD_WAKEUP_PERIOD), K_MINUTES(CLOUD_WAKEUP_PERIOD));
+    //timer for populating test data - to be removed
+    k_timer_start(&test_data_timer, K_SECONDS(10), K_SECONDS(10)); 
+
+    while (true)
+    {
+        int fail_count = 0;
+        k_event_wait(&cloud_events, CLOUD_WAKEUP_EVENT, true, K_FOREVER);
+        LOG_INF("wakeup");
+        // with LoRa we should send one message at a time
+        while (fail_count < CLOUD_SEND_RETRY_COUNT && k_msgq_num_used_get(&transmit_queue) > 0)
+        {
+            uint8_t payload[LORA_PAYLOAD_MAX_LEN];
+            int msg_count = 0;
+            int payload_pos = 0;
+            bool error = false;
+            // peek first and remove only after successfull transmit
+            while (!error && k_msgq_peek_at(&transmit_queue, &data, msg_count) == 0)
+            {
+                LOG_INF("%s %u", data.id, (unsigned int)data.timestamp);
+                int size = get_message_len(&data);
+                if (size < 0 || payload_pos + size > LORA_PAYLOAD_MAX_LEN)
+                {
+                    LOG_ERR("Payload full: size %d, pos %d", size, payload_pos);
+                    break; 
+                }
+
+                int written = serialize_payload(payload + payload_pos, &data);
+                if (written < 0) {
+                    LOG_ERR("Serialization error");
+                    error = true;
+                    break;
+                }
+                payload_pos += written;
+                ++msg_count;
+            }
+            // send the payload to lora.c 
+            if (!error && payload_pos > 0)
+            {
+                int result = lora_queue_payload(payload, payload_pos);
+                if (result == 0)
+                {
+                    fail_count = 0;
+                    // remove message from queue after transmit - should always succeed because we already peeked the message
+                    while (msg_count > 0)
+                    {
+                        if (k_msgq_get(&transmit_queue, &data, K_NO_WAIT) == 0)
+                        {
+                            --msg_count;
+                        }
+                        else
+                        {
+                            LOG_ERR("No message after succesfull peek");
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    ++fail_count;
+                    LOG_INF("Send failed: %d", fail_count);
+                }
+            }
+
         }
     }
 }
