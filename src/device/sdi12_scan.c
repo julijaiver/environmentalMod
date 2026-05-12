@@ -79,6 +79,8 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
 
     while (true)
     {
+        k_event_wait(&envisens_events, TAKE_SAMPLE_EVENT, true, K_FOREVER);
+
         for( int i = 0; i < sensor_count; ++i) {
             if(sensors[i].data.type == TYPE_TEROS12)
             {
@@ -160,6 +162,5 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
             }  
         }
 
-        k_msleep(MEASURE_CYCLE_SLEEP);
     }
 }

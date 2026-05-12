@@ -2,6 +2,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/rtc.h>
+#include <zephyr/logging/log.h>
 
 // Standard libraries
 #include <stdio.h>
@@ -18,6 +19,8 @@
 #include "sdi12_scan.h"
 #include "ruuvi_scan.h"
 #include "nv_params.h"
+
+LOG_MODULE_REGISTER(main);
 
 #if CONFIG_SDI12
 K_THREAD_STACK_DEFINE(sdi12_stack_area, SDI12_STACKSIZE);
@@ -68,7 +71,7 @@ int main(void)
 #if 1
 	printk("Type \"stop\" to stop boot\n");
 
-	if(k_event_wait(&envisens_events, BOOT_HALT_EVENT, true, K_SECONDS(30)) == BOOT_HALT_EVENT) {
+	if(k_event_wait(&envisens_events, BOOT_HALT_EVENT | BOOT_CONTINUE_EVENT, true, K_SECONDS(30)) == BOOT_HALT_EVENT) {
 		BOOT_WAIT();
 	}
 	
@@ -83,13 +86,26 @@ int main(void)
 		k_msleep(ERROR_LOOP_SLEEP);
 		handle_errors(&err, &rtc_time);
 	}
+
+	CLOCK_WAIT();
+
+	print_current_time();
 	// Main loop
 	while (1)
 	{
-		print_current_time();
-
-		printk("Going to sleep\n");
-		k_msleep(MEASURE_CYCLE_SLEEP); // 5 Minute sleep
+		struct timespec now_ts;
+		if (clock_gettime(CLOCK_REALTIME, &now_ts) == 0) {
+			struct tm *t = gmtime(&now_ts.tv_sec);
+			if(t->tm_min % MEASURE_CYCLE_MINUTES == 0) {
+				LOG_INF("Start sampling");
+				print_current_time();
+				TAKE_SAMPLE_NOW(); 
+				k_msleep(MEASURE_CYCLE_MINUTES * 60000 - 5000); // go to sleep and wake up 5s before next deadline
+			}
+			else {
+				k_msleep(100); // not there yet - sleep just a bit and check again
+			}
+		}
 	}
 
 	return 0;

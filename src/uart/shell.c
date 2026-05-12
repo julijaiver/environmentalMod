@@ -124,6 +124,19 @@ static int cmd_boot_continue(const struct shell *sh, size_t argc, char **argv)
 SHELL_CMD_REGISTER(continue, NULL, "Continue booting", cmd_boot_continue);
 
 
+static int cmd_boot_take_sample(const struct shell *sh, size_t argc, char **argv)
+{
+    ARG_UNUSED(sh);
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+
+	TAKE_SAMPLE_NOW();
+
+	return 0;
+}
+SHELL_CMD_REGISTER(sample, NULL, "Trigger data sampling", cmd_boot_take_sample);
+
+
 //int sdi12_cmd(const char *cmd, bool send_break);
 //int sdi12_wait_for(char *buffer, int size, const char *expect);
 
