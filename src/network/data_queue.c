@@ -20,9 +20,7 @@ static void cloud_send(void *p1, void *p2, void *p3);
 #define CLOUD_WAKEUP_PERIOD 60
 
 // size of max len for msghex
-//todo: should work with variable id lengths, add byte for id len
 #define RUUVI_ID_LEN 6
-#define SDI12_ID_LEN 13
 
 K_MSGQ_DEFINE(transmit_queue, sizeof(struct sensor_data), DATA_QUEUE_LENGTH, 1);
 
@@ -104,12 +102,13 @@ static int get_message_len(const struct sensor_data *data)
 {
     switch (data->type)
     {
+        // format: type(1b) + id_len(1b) + id + timestamp(4b) + data
     case TYPE_RUUVI_TAG:
-        return 1 + sizeof(uint32_t) + RUUVI_ID_LEN + 4 * sizeof(float);
+        return 1 + 1 + RUUVI_ID_LEN + sizeof(uint32_t) +  4 * sizeof(float);
     case TYPE_TEROS12:
-        return 1 + sizeof(uint32_t) + SDI12_ID_LEN + 3 * sizeof(float);
+        return 1 + 1 + strlen(data->id) + sizeof(uint32_t) + 3 * sizeof(float);
     case TYPE_SOLYX14:
-        return 1 + sizeof(uint32_t) + SDI12_ID_LEN + 5 * sizeof(float);
+        return 1 + 1 + strlen(data->id) + sizeof(uint32_t) + 5 * sizeof(float);
     default:
         return -1;
     }
@@ -119,9 +118,28 @@ static int get_message_len(const struct sensor_data *data)
 static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
 {
     int pos = 0;
+    uint8_t id_len;
     uint32_t time = (uint32_t)data->timestamp;
     //add type and timestamp
     buf[pos++] = (uint8_t)data->type;
+
+    //for mac addr it's different than sdi12 sensors
+    if (data->type == TYPE_RUUVI_TAG)
+    {
+        id_len = RUUVI_ID_LEN;
+        buf[pos++] = id_len;
+        sscanf(data->id, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+               &buf[pos], &buf[pos + 1], &buf[pos + 2], &buf[pos + 3], &buf[pos + 4], &buf[pos + 5]);
+        pos += id_len;
+    }
+    else
+    {
+        id_len = (uint8_t)strlen(data->id);
+        buf[pos++] = id_len;
+        memcpy(buf + pos, data->id, id_len);
+        pos += id_len;
+    }
+
     memcpy(buf + pos, &time, sizeof(time));
     pos += sizeof(time);
 
@@ -129,9 +147,6 @@ static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
     switch (data->type)
     {
     case TYPE_RUUVI_TAG:
-        //for MAC, just adding bytes to save space, not string chars
-        sscanf(data->id, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &buf[pos], &buf[pos + 1], &buf[pos + 2], &buf[pos + 3], &buf[pos + 4], &buf[pos + 5]);
-        pos += RUUVI_ID_LEN;
         memcpy(buf + pos, &data->ruuvi.temperature, sizeof(float));
         pos += sizeof(float);
         memcpy(buf + pos, &data->ruuvi.humidity, sizeof(float));
@@ -142,8 +157,6 @@ static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
         pos += sizeof(float);
         break;
     case TYPE_TEROS12:
-        memcpy(buf + pos, data->id, SDI12_ID_LEN);
-        pos += SDI12_ID_LEN;
         memcpy(buf + pos, &data->teros.vwc, sizeof(float));
         pos += sizeof(float);
         memcpy(buf + pos, &data->teros.temp, sizeof(float));
@@ -152,8 +165,6 @@ static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
         pos += sizeof(float);
         break;
     case TYPE_SOLYX14:
-        memcpy(buf + pos, data->id, SDI12_ID_LEN);
-        pos += SDI12_ID_LEN;
         memcpy(buf + pos, &data->solyx.epsr, sizeof(float));
         pos += sizeof(float);
         memcpy(buf + pos, &data->solyx.temp, sizeof(float));
