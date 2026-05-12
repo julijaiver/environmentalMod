@@ -633,6 +633,7 @@ void stConnected(smi *sm, const event *e)
 		{
 			if(k_msgq_peek(&lora_payload_queue, &payload) == 0) 
 			{
+				lora_flush(sm);
 				if (lora_send_hex(sm, &payload) > 0) 
 				{
 					sm->count = 1;
@@ -651,6 +652,7 @@ void stConnected(smi *sm, const event *e)
 					if (k_msgq_peek(&lora_payload_queue, &payload) == 0) {
 						LOG_WRN("No ACK, retrying send");
 						sm->timer = 0;
+						lora_flush(sm);
 						lora_send_hex(sm, &payload);
 						++sm->count;
 					}
@@ -671,10 +673,9 @@ void stConnected(smi *sm, const event *e)
 				LOG_INF("Message removed from lora queue");
 				sm->count = 0; 
 			}
-			
 		}
 		else if(res == 1) {
-			// message sent - remove from queue
+
 		}
 		break;
 	default:
