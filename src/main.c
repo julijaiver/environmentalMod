@@ -106,6 +106,9 @@ int main(void)
 				k_msleep(100); // not there yet - sleep just a bit and check again
 			}
 		}
+		else {
+			k_msleep(60000);
+		}
 	}
 
 	return 0;
