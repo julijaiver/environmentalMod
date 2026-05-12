@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(lora);
 
 #include "common.h"
 #include "lora.h"
+#include "data_queue.h"
 
 #define DEV_LORA DEVICE_DT_GET(DT_NODELABEL(uart0))
 
@@ -662,14 +663,18 @@ void stConnected(smi *sm, const event *e)
 		res = lora_wait_for(sm, expect);
 
 		if (res == 0) {
-			LOG_INF("Message ACK");
+			LOG_INF("Message ACK"); 
+			k_event_post(&cloud_events, LORA_MESSAGE_SENT_BIT);
+			LOG_INF("Message sent and removed from queue");
+
+			if(k_msgq_get(&lora_payload_queue, &payload, K_NO_WAIT) == 0) {
+				LOG_INF("Message removed from lora queue");
+				sm->count = 0; 
+			}
+			
 		}
 		else if(res == 1) {
 			// message sent - remove from queue
-			if(k_msgq_get(&lora_payload_queue, &payload, K_NO_WAIT) == 0) {
-				LOG_INF("Message sent and removed from queue");
-			}
-			sm->count = 0; 
 		}
 		break;
 	default:

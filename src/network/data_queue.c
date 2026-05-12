@@ -420,18 +420,22 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 int result = lora_queue_payload(payload, payload_pos);
                 if (result == 0)
                 {
-                    fail_count = 0;
-                    // remove message from queue after transmit - should always succeed because we already peeked the message
-                    while (msg_count > 0)
+                    //remove only if it was sent successfuly within 30s
+                    if(k_event_wait(&cloud_events, LORA_MESSAGE_SENT_BIT, true, K_SECONDS(30)) != 0)
                     {
-                        if (k_msgq_get(&transmit_queue, &data, K_NO_WAIT) == 0)
+                        fail_count = 0;
+                        // remove message from queue after transmit - should always succeed because we already peeked the message
+                        while (msg_count > 0)
                         {
-                            --msg_count;
-                        }
-                        else
-                        {
-                            LOG_ERR("No message after succesfull peek");
-                            break;
+                            if (k_msgq_get(&transmit_queue, &data, K_NO_WAIT) == 0)
+                            {
+                                --msg_count;
+                            }
+                            else
+                            {
+                                LOG_ERR("No message after succesfull peek");
+                                break;
+                            }
                         }
                     }
                 }
