@@ -16,7 +16,6 @@ static void cloud_send(void *p1, void *p2, void *p3);
 
 #define CLOUD_SEND_STACK_SIZE 16384 // 8192
 #define CLOUD_SEND_THREAD_PRIORITY 7
-#define CLOUD_WAKEUP_EVENT 1
 #define CLOUD_WAKEUP_PERIOD 60
 
 // size of max len for msghex
@@ -387,10 +386,18 @@ static void cloud_send(void *p1, void *p2, void *p3)
         int fail_count = 0;
         k_event_wait(&cloud_events, CLOUD_WAKEUP_EVENT, true, K_FOREVER);
         LOG_INF("wakeup");
+                                                                                                            
+        LOG_INF("Queue items: %d", k_msgq_num_used_get(&transmit_queue));   
         // with LoRa we should send one message at a time
         while (fail_count < CLOUD_SEND_RETRY_COUNT && k_msgq_num_used_get(&transmit_queue) > 0)
         {
-            uint8_t payload[LORA_PAYLOAD_MAX_LEN];
+            k_event_post(&lora_request_event, LORA_LEN_REQUEST_BIT);
+            LOG_INF("request addr=%p events=0x%08x",(void*)&lora_request_event,lora_request_event.events);
+            LOG_INF("LEN request posted");
+            // wait for payload len
+            k_event_wait(&lora_response_event, LORA_LEN_READY_BIT, true, K_FOREVER);
+            int max_payload_len = lora_get_max_payload_len();
+            uint8_t payload[LORA_PAYLOAD_MAX_LEN]; // not sure about this what to set it to?
             int msg_count = 0;
             int payload_pos = 0;
             bool error = false;
@@ -399,7 +406,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
             {
                 LOG_INF("%s %u", data.id, (unsigned int)data.timestamp);
                 int size = get_message_len(&data);
-                if (size < 0 || payload_pos + size > LORA_PAYLOAD_MAX_LEN)
+                if (size < 0 || payload_pos + size > max_payload_len)
                 {
                     LOG_ERR("Payload full: size %d, pos %d", size, payload_pos);
                     break; 
@@ -421,7 +428,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 if (result == 0)
                 {
                     //remove only if it was sent successfuly within 30s
-                    if(k_event_wait(&cloud_events, LORA_MESSAGE_SENT_BIT, true, K_SECONDS(30)) != 0)
+                    if(k_event_wait(&lora_response_event, LORA_MESSAGE_SENT_BIT, true, K_SECONDS(30)) != 0)
                     {
                         fail_count = 0;
                         // remove message from queue after transmit - should always succeed because we already peeked the message

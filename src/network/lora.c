@@ -93,6 +93,13 @@ void stStateTemplate(smi *sm, const event *e)
 #define LORA_THREAD_PRIORITY  7
 #define LORA_THREAD_STACK_SIZE   4096
 
+static int lora_max_payload_len = 50; // default before adding val from at len command
+
+int lora_get_max_payload_len(void)
+{
+	return lora_max_payload_len;
+}
+
 static void lora_thread(void *p1, void *p2, void *p3);
 
 K_THREAD_DEFINE(lora_send_thread, LORA_THREAD_STACK_SIZE, lora_thread, NULL, NULL, NULL, LORA_THREAD_PRIORITY, 0, 0);
@@ -105,6 +112,7 @@ void stPort(smi *sm, const event *e);
 void stJoin(smi *sm, const event *e);
 void stConnected(smi *sm, const event *e);
 void stClockSync(smi *sm, const event *e);
+void stSend(smi *sm, const event *e);
 
 static int lora_set_system_time(const char *str);
 
@@ -119,6 +127,9 @@ static void lora_tick(struct k_timer *timer);
 
 K_MSGQ_DEFINE(lora_event_queue, sizeof(event), 20, 1);
 K_TIMER_DEFINE(lora_tick_timer, lora_tick, NULL);
+//K_EVENT_DEFINE(lora_events);
+struct k_event lora_request_event;                
+struct k_event lora_response_event;
 
 static void lora_tick(struct k_timer *timer)
 {
@@ -364,6 +375,10 @@ static void lora_thread(void *p1, void *p2, void *p3)
 {
 	event ev;
 	smi sm = { stInit, stInit, 0, 0, 0 };
+
+	//trying to create event groups at runtime
+	k_event_init(&lora_request_event);   
+  	k_event_init(&lora_response_event); 
 
 	lora_init();
 
@@ -616,7 +631,7 @@ void stClockSync(smi *sm, const event *e)
 
 void stConnected(smi *sm, const event *e)
 {
-	const char *expect[] = { "+CMSGHEX: ACK Received","+CMSGHEX: Done", NULL };
+	const char *expect[] = { "+LW: LEN", NULL };
 	int res = -1;
 	struct lora_payload payload;
 
@@ -629,53 +644,113 @@ void stConnected(smi *sm, const event *e)
 	case eExit:
 		break;
 	case eTick:
-		if(sm->count == 0) 
+		LOG_INF("request addr=%p events=0x%08x", (void*)&lora_request_event, lora_request_event.events); 
+		if (k_event_wait(&lora_request_event, LORA_LEN_REQUEST_BIT, true, K_NO_WAIT) != 0)
 		{
-			if(k_msgq_peek(&lora_payload_queue, &payload) == 0) 
+			sm->count = 0; // wait for len again
+			lora_write(sm, "AT+LW=LEN\r\n");
+			printk("*** GETTING MAX LEN ***\n");
+		}
+		if (sm->count == 1) 
+		{
+			//when there's data in payload queue, transition to stSend state
+			if (k_msgq_peek(&lora_payload_queue, &payload) == 0) 
 			{
-				lora_flush(sm);
-				if (lora_send_hex(sm, &payload) > 0) 
-				{
-					sm->count = 1;
-					sm->timer = 0;
-				}
+				TRAN(stSend);
 			}
+		}
+		break;
+	case eReceive:
+		res = lora_wait_for(sm, expect);
+		if (res == 0)
+		{
+			char *len_str = strstr(sm->buffer, "+LW: LEN,");
+			if (len_str && sscanf(len_str + 9, "%d", &lora_max_payload_len) == 1)
+			{
+				LOG_INF("Max payload length: %d", lora_max_payload_len);
+				k_event_post(&lora_response_event, LORA_LEN_READY_BIT);
+				sm->count = 1;
+				LOG_INF("PAYLOAD EVENT POSTED");
+			}
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void stSend(smi *sm, const event *e)
+{
+	const char *expect[] = { "+CMSGHEX: ACK Received","+CMSGHEX: Done", "+CMSGHEX: Length error", NULL };
+	int res = -1;
+	struct lora_payload payload;
+
+	switch(e->ev) {
+	case eEnter:
+		lora_flush(sm);
+		smClear(sm);
+		//send msg cause already peeked and set bit in stconnect
+		if (k_msgq_peek(&lora_payload_queue, &payload) == 0)
+		{
+			if (lora_send_hex(sm, &payload) > 0)
+			{
+				sm->timer = 0;
+				sm->count = 1; 
+			}
+		}
+		break;
+	case eExit:
+		break;
+	case eTick:
+		if (sm->count == 0) 
+		{
+			if(++sm->timer > 10) 
+			{
+				LOG_WRN("Length query timeout, retryint");
+				TRAN(stConnected);
+			} 
 		} else {
-			if(++sm->timer > 30) {
-				if (sm->count >= 3) 
+			if (++sm->timer > 30) {
+				if (sm->count >= 3)
 				{
-					LOG_ERR("Message send failed 3 times, resetting connection");
-					// message not removed to retry again without losing data
+					LOG_ERR("Message send failed after 3 attempts, going back to connect");
 					TRAN(stJoin);
 					return;
 				} else {
-					if (k_msgq_peek(&lora_payload_queue, &payload) == 0) {
-						LOG_WRN("No ACK, retrying send");
+					if (k_msgq_peek(&lora_payload_queue, &payload) == 0)
+					{
+						//message still in queue
+						LOG_WRN("No ACK, resending");
 						sm->timer = 0;
 						lora_flush(sm);
 						lora_send_hex(sm, &payload);
 						++sm->count;
 					}
-				}
+				}	
 			}
 		}
 		break;
 	case eReceive:
-		if(sm->count == 0) break; // if any message arrives in idle state
 		res = lora_wait_for(sm, expect);
 
 		if (res == 0) {
-			LOG_INF("Message ACK"); 
-			k_event_post(&cloud_events, LORA_MESSAGE_SENT_BIT);
-			LOG_INF("Message sent and removed from queue");
-
-			if(k_msgq_get(&lora_payload_queue, &payload, K_NO_WAIT) == 0) {
-				LOG_INF("Message removed from lora queue");
-				sm->count = 0; 
+			LOG_INF("ACK received");
+			k_event_post(&lora_response_event, LORA_MESSAGE_SENT_BIT);
+			if (k_msgq_get(&lora_payload_queue, &payload, K_NO_WAIT) == 0)
+			{
+				LOG_INF("Message removed from payload queue");
 			}
-		}
-		else if(res == 1) {
-
+			TRAN(stConnected);
+		} else if (res == 1) {
+			//maybe waiting for msg done is not even needed?
+		} else if (res == 2) {
+			LOG_ERR("Length error");
+			// remove payload that is too long (data will not be lost cause it's still in data_queue and removed on axk)
+			if (k_msgq_get(&lora_payload_queue, &payload, K_NO_WAIT) == 0)
+			{
+				LOG_INF("Message removed from payload queue due to length error");
+			}
+			TRAN(stConnected);
 		}
 		break;
 	default:
