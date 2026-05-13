@@ -644,9 +644,10 @@ void stConnected(smi *sm, const event *e)
 	case eExit:
 		break;
 	case eTick:
-		LOG_INF("request addr=%p events=0x%08x", (void*)&lora_request_event, lora_request_event.events); 
-		if (k_event_wait(&lora_request_event, LORA_LEN_REQUEST_BIT, true, K_NO_WAIT) != 0)
+		//LOG_INF("request addr=%p events=0x%08x", (void*)&lora_request_event, lora_request_event.events); 
+		if (k_event_wait(&lora_request_event, LORA_LEN_REQUEST_BIT, false, K_NO_WAIT) != 0)
 		{
+			k_event_clear(&lora_request_event, LORA_LEN_REQUEST_BIT);
 			sm->count = 0; // wait for len again
 			lora_write(sm, "AT+LW=LEN\r\n");
 			printk("*** GETTING MAX LEN ***\n");
