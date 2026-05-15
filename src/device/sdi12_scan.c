@@ -8,6 +8,7 @@ LOG_MODULE_REGISTER(sdi12_scan);
 
 #include <stdio.h>
 #include <time.h>
+#include <math.h>
 
 #include "common.h"
 #include "device.h"
@@ -140,9 +141,9 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                         // with single sensor the id is set during init, just set timestamp
                         sensors[i].data.timestamp = time(NULL);
                         //calculating vwc and pw_ec values from raw
-                        float epsp = 80.3 - 0.37 * (sensors[i].data.solyx.temp - 20.0);
-                        sensors[i].data.solyx.vwc = 0.0985 * sqrtf(sensors[i].data.solyx.epsr) - 0.159;
-                        sensors[i].data.solyx.pw_ec = (epsp * sensors[i].data.solyx.bulk_ec) / (sensors[i].data.solyx.epsr - 4.1);
+                        float epsp = 80.3f - 0.37f * (sensors[i].data.solyx.temp - 20.0f);
+                        sensors[i].data.solyx.vwc = 0.0985f * sqrtf(sensors[i].data.solyx.epsr) - 0.159f;
+                        sensors[i].data.solyx.pw_ec = (epsp * sensors[i].data.solyx.bulk_ec) / (sensors[i].data.solyx.epsr - 4.1f);
                         if (data_put(&sensors[i].data) < 0)
                         {
                             LOG_ERR("Failed to queue data");

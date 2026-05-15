@@ -40,7 +40,7 @@ static struct modem_data data;
 
 
 
-typedef enum eventTypes { eEnter, eExit, eTick, eReceive } EventType;
+typedef enum eventTypes { eEnter, eExit, eTick, eReceive, eCommand, ePayloadReady } EventType;
 
 typedef struct event_ {
 	EventType ev; // event type (= what happened)
@@ -70,7 +70,8 @@ struct smi_ {
 static const event evEnter = { eEnter, 0, NULL, NULL };
 static const event evExit = { eExit, 0, NULL, NULL };
 static const event evTick = { eTick, 0, NULL, NULL };
-
+static const event evCommand = { eCommand, 0, NULL, NULL };
+static const event evPayloadReady = { ePayloadReady, 0, NULL, NULL };
 #if 0
 /* this is state template */
 void stStateTemplate(smi *sm, const event *e)
@@ -93,13 +94,6 @@ void stStateTemplate(smi *sm, const event *e)
 #define LORA_THREAD_PRIORITY  7
 #define LORA_THREAD_STACK_SIZE   4096
 
-static int lora_max_payload_len = 50; // default before adding val from at len command
-
-int lora_get_max_payload_len(void)
-{
-	return lora_max_payload_len;
-}
-
 static void lora_thread(void *p1, void *p2, void *p3);
 
 K_THREAD_DEFINE(lora_send_thread, LORA_THREAD_STACK_SIZE, lora_thread, NULL, NULL, NULL, LORA_THREAD_PRIORITY, 0, 0);
@@ -111,8 +105,10 @@ void stDr(smi *sm, const event *e);
 void stPort(smi *sm, const event *e);
 void stJoin(smi *sm, const event *e);
 void stConnected(smi *sm, const event *e);
-void stClockSync(smi *sm, const event *e);
+void stGetPayloadLen(smi *sm, const event *e);
 void stSend(smi *sm, const event *e);
+void stClockSync(smi *sm, const event *e);
+
 
 static int lora_set_system_time(const char *str);
 
@@ -127,9 +123,10 @@ static void lora_tick(struct k_timer *timer);
 
 K_MSGQ_DEFINE(lora_event_queue, sizeof(event), 20, 1);
 K_TIMER_DEFINE(lora_tick_timer, lora_tick, NULL);
-//K_EVENT_DEFINE(lora_events);
-struct k_event lora_request_event;                
+//K_EVENT_DEFINE(lora_events);              
 struct k_event lora_response_event;
+
+static int lora_max_payload_len = 50; // default before adding val from lw: len command
 
 static void lora_tick(struct k_timer *timer)
 {
@@ -147,6 +144,7 @@ struct lora_payload {
 };
 
 K_MSGQ_DEFINE(lora_payload_queue, sizeof(struct lora_payload), 4, 1);
+K_EVENT_DEFINE(lora_response_event);
 static int lora_send_hex(smi *sm, struct lora_payload *payload);
 
 /* Callback when modem pipe receives data */
@@ -375,10 +373,6 @@ static void lora_thread(void *p1, void *p2, void *p3)
 {
 	event ev;
 	smi sm = { stInit, stInit, 0, 0, 0 };
-
-	//trying to create event groups at runtime
-	k_event_init(&lora_request_event);   
-  	k_event_init(&lora_response_event); 
 
 	lora_init();
 
@@ -631,10 +625,6 @@ void stClockSync(smi *sm, const event *e)
 
 void stConnected(smi *sm, const event *e)
 {
-	const char *expect[] = { "+LW: LEN", NULL };
-	int res = -1;
-	struct lora_payload payload;
-
 	switch(e->ev) {
 	case eEnter:
 		lora_flush(sm);
@@ -644,21 +634,36 @@ void stConnected(smi *sm, const event *e)
 	case eExit:
 		break;
 	case eTick:
-		//LOG_INF("request addr=%p events=0x%08x", (void*)&lora_request_event, lora_request_event.events); 
-		if (k_event_wait(&lora_request_event, LORA_LEN_REQUEST_BIT, false, K_NO_WAIT) != 0)
-		{
-			k_event_clear(&lora_request_event, LORA_LEN_REQUEST_BIT);
-			sm->count = 0; // wait for len again
-			lora_write(sm, "AT+LW=LEN\r\n");
-			printk("*** GETTING MAX LEN ***\n");
-		}
-		if (sm->count == 1) 
-		{
-			//when there's data in payload queue, transition to stSend state
-			if (k_msgq_peek(&lora_payload_queue, &payload) == 0) 
-			{
-				TRAN(stSend);
-			}
+		break;
+	case eReceive:
+		break;
+	case eCommand:
+		TRAN(stGetPayloadLen);
+		break;
+	case ePayloadReady:
+		TRAN(stSend);
+		break;
+	default:
+		break;
+	}
+}
+
+void stGetPayloadLen(smi *sm, const event *e)
+{
+	const char *expect[] = { "+LW: LEN", "+CMSGHEX: Length error", NULL };
+	int res = -1;
+
+	switch(e->ev) {
+	case eEnter:
+		lora_flush(sm);
+		smClear(sm);
+		lora_write(sm, "AT+LW=LEN\r\n");
+		break;
+	case eExit:
+		break;
+	case eTick:
+		if(++sm->timer > 3) {
+			TRAN(stConnected);
 		}
 		break;
 	case eReceive:
@@ -669,10 +674,14 @@ void stConnected(smi *sm, const event *e)
 			if (len_str && sscanf(len_str + 9, "%d", &lora_max_payload_len) == 1)
 			{
 				LOG_INF("Max payload length: %d", lora_max_payload_len);
-				k_event_post(&lora_response_event, LORA_LEN_READY_BIT);
-				sm->count = 1;
-				LOG_INF("PAYLOAD EVENT POSTED");
 			}
+			k_event_post(&lora_response_event, LORA_LEN_READY_BIT);
+			TRAN(stConnected);
+		}
+		if (res == 1)
+		{
+			LOG_ERR("Length error");
+			TRAN(stConnected);
 		}
 		break;
 	default:
@@ -804,6 +813,15 @@ static int lora_set_system_time(const char *str)
 	return 0;
 }
 
+// this function when called enters eCommand event and waits for len response bit
+int lora_get_max_payload_len(void)
+{
+	k_event_clear(&lora_response_event, LORA_LEN_READY_BIT); 
+	k_msgq_put(&lora_event_queue, &evCommand, K_NO_WAIT);
+	k_event_wait(&lora_response_event, LORA_LEN_READY_BIT, false, K_FOREVER);
+	return lora_max_payload_len;
+}
+
 static int lora_send_hex(smi *sm, struct lora_payload *payload)
 {
 	if (payload->len <= 0) return -1;
@@ -831,5 +849,11 @@ int lora_queue_payload(uint8_t *buf, int len)
 	memcpy(payload.buf, buf, len);
 	payload.len = len;
 	
-	return k_msgq_put(&lora_payload_queue, &payload, K_NO_WAIT);
+	int result = k_msgq_put(&lora_payload_queue, &payload, K_NO_WAIT);
+	if (result == 0) 
+	{
+		k_msgq_put(&lora_event_queue, &evPayloadReady, K_NO_WAIT);
+	}
+	return result;
 }
+

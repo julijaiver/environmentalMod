@@ -391,11 +391,10 @@ static void cloud_send(void *p1, void *p2, void *p3)
         // with LoRa we should send one message at a time
         while (fail_count < CLOUD_SEND_RETRY_COUNT && k_msgq_num_used_get(&transmit_queue) > 0)
         {
-            k_event_post(&lora_request_event, LORA_LEN_REQUEST_BIT);
-            LOG_INF("request addr=%p events=0x%08x",(void*)&lora_request_event,lora_request_event.events);
-            LOG_INF("LEN request posted");
+            /*k_event_post(&lora_request_event, LORA_LEN_REQUEST_BIT);
+            LOG_INF("LEN request posted");*/
+
             // wait for payload len
-            k_event_wait(&lora_response_event, LORA_LEN_READY_BIT, true, K_FOREVER);
             int max_payload_len = lora_get_max_payload_len();
             uint8_t payload[LORA_PAYLOAD_MAX_LEN]; // not sure about this what to set it to?
             int msg_count = 0;
@@ -408,7 +407,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 int size = get_message_len(&data);
                 if (size < 0 || payload_pos + size > max_payload_len)
                 {
-                    LOG_ERR("Payload full: size %d, pos %d", size, payload_pos);
+                    LOG_INF("Payload full: size %d, pos %d", size, payload_pos);
                     break; 
                 }
 
