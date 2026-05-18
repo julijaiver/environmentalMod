@@ -182,6 +182,26 @@ static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
     return pos; //payload size
 }
 
+int send_log_msg(struct msg_log *msg)
+{
+    uint8_t buf[DR1_LEN];
+    buf[0] = (uint8_t)msg->type;
+
+    if (msg->type == TYPE_LOG_MSG_TXT) 
+    {
+        int len = strnlen(msg->txt_msg, MSG_TXT_MAX_LEN);
+        memcpy(buf + 1, msg->txt_msg, len);
+        return lora_queue_payload(buf, 1 + len);
+    } else if (msg->type == TYPE_LOG_MSG_INT)
+    {
+        uint8_t count = msg->int_msg.count;
+        buf[1] = msg->int_msg.id;
+        memcpy(buf + 2, msg->int_msg.int_vals, count * sizeof(uint32_t));
+        return lora_queue_payload(buf, 2 + count * sizeof(uint32_t));
+    }
+    return -1;
+}
+
 // cloud send is based on assumption that a single measurement is less than this size
 #define JSON_ELEMENT_MAX_SIZE 256
 // margin for closing the JSON array of measurements and comma between array elements
@@ -396,6 +416,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
 
             // wait for payload len
             int max_payload_len = lora_get_max_payload_len();
+
             uint8_t payload[LORA_PAYLOAD_MAX_LEN]; // not sure about this what to set it to?
             int msg_count = 0;
             int payload_pos = 0;
@@ -429,6 +450,17 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     //remove only if it was sent successfuly within 30s
                     if(k_event_wait(&lora_response_event, LORA_MESSAGE_SENT_BIT, true, K_SECONDS(30)) != 0)
                     {
+                        // testing log msg
+                        struct msg_log int_log = {
+                            .type = TYPE_LOG_MSG_INT,
+                            .int_msg = {
+                                .id = 1,
+                                .count = 2,
+                                .int_vals = {payload_pos, fail_count}
+                            }
+                        };
+                        send_log_msg(&int_log);
+
                         fail_count = 0;
                         // remove message from queue after transmit - should always succeed because we already peeked the message
                         while (msg_count > 0)

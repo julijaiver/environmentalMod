@@ -13,4 +13,7 @@
 int data_put(struct sensor_data *data);
 void cloud_send_notify(struct k_timer *timer);
 
+//for sending logs
+int send_log_msg(struct msg_log *msg);
+
 #endif

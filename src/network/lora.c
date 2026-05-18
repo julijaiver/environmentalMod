@@ -818,7 +818,10 @@ int lora_get_max_payload_len(void)
 {
 	k_event_clear(&lora_response_event, LORA_LEN_READY_BIT); 
 	k_msgq_put(&lora_event_queue, &evCommand, K_NO_WAIT);
-	k_event_wait(&lora_response_event, LORA_LEN_READY_BIT, false, K_FOREVER);
+	if (k_event_wait(&lora_response_event, LORA_LEN_READY_BIT, false, K_SECONDS(10)) == 0) 
+	{
+		return -1; // timeout
+	}
 	return lora_max_payload_len;
 }
 
