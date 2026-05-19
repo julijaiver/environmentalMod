@@ -760,6 +760,7 @@ void stSend(smi *sm, const event *e)
 			{
 				LOG_INF("Message removed from payload queue due to length error");
 			}
+			k_event_post(&lora_response_event, LORA_SEND_ERROR_BIT);
 			TRAN(stConnected);
 		}
 		break;

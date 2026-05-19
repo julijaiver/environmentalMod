@@ -456,7 +456,8 @@ static void cloud_send(void *p1, void *p2, void *p3)
                 if (result == 0)
                 {
                     //remove only if it was sent successfuly within 30s
-                    if(k_event_wait(&lora_response_event, LORA_MESSAGE_SENT_BIT, true, K_SECONDS(30)) != 0)
+                    uint32_t ev = k_event_wait(&lora_response_event, LORA_MESSAGE_SENT_BIT | LORA_SEND_ERROR_BIT, true, K_SECONDS(95)); // so that iof there are 3 resends, each 30s, this wouldn't timeout
+                    if (ev & LORA_MESSAGE_SENT_BIT)
                     {
                         // testing log msg
                         struct msg_log int_log = {
@@ -483,6 +484,9 @@ static void cloud_send(void *p1, void *p2, void *p3)
                                 break;
                             }
                         }
+                    } else if (ev & LORA_SEND_ERROR_BIT)
+                    {
+                        LOG_ERR("Error bit received, send failed");
                     }
                 }
                 else

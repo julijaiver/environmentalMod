@@ -9,6 +9,7 @@ extern struct k_event lora_response_event;
 
 #define LORA_LEN_READY_BIT BIT(0)
 #define LORA_MESSAGE_SENT_BIT BIT(1)
+#define LORA_SEND_ERROR_BIT BIT(2)
 
 #define LORA_PAYLOAD_MAX_LEN 242
 int lora_raw_write(const char *str);
