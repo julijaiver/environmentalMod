@@ -40,6 +40,11 @@ struct solyx14 {
     float pw_ec;
 };
 
+struct solinst_levelogger {
+    float temp;
+    float level;
+};
+
 struct sensor_data {
     int type;
     time_t timestamp;
@@ -48,6 +53,7 @@ struct sensor_data {
         struct ruuvi_tag ruuvi;
         struct teros12 teros;
         struct solyx14 solyx;
+        struct solinst_levelogger solinst;
     };
 };
 

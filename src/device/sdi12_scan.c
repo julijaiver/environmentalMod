@@ -39,6 +39,7 @@ static int sdi12_scan_sensors(struct sdi12_sensors *sn, int max_sensors)
             } known[] = {
                 { "METER   TER12 ", TYPE_TEROS12 },
                 { "METER   SLYX14", TYPE_SOLYX14 },
+                { "SOLINST ", TYPE_SOLINST }, // SOLINST M20? the model num after solinst?
                 { NULL, TYPE_UNKNOWN }
             }; 
                 
@@ -47,6 +48,21 @@ static int sdi12_scan_sensors(struct sdi12_sensors *sn, int max_sensors)
             for( struct known_sensors *kn = known; kn->identifier != NULL; ++kn) {
                 char *str = strstr(response, kn->identifier);
                 if (str != NULL) {
+                    // for solinst the identifier format a bit different? From dsh: 0I! 013SOLINST M20 S2 1.000 1017687<CR><LF>
+                    // find the last space and record the num after
+                    #if 0
+                    if (kn->type == TYPE_SOLINST)
+                    {
+                        char *serial = strrchr(response, ' ');
+                        if (serial && *(serial + 1) != '\0')
+                        {
+                            strncpy(sn[sid].data.id, serial + 1, sizeof(sn[sid].data.id));
+                            sn[sid].data.id[sizeof(sn[sid].data.id) - 1] = 0; 
+                        } else {
+                            LOG_ERR("Failed to parse solinst serial number");
+                        }
+                    }
+                    #endif
                     strncpy(sn[sid].data.id, str + 17, sizeof(sn[sid].data.id)); // copy string starting from (optional) serial number
                     sn[sid].data.id[sizeof(sn[sid].data.id) - 1] = 0;           // ensure termination
                     sn[sid].data.type = kn->type;
@@ -119,7 +135,9 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                 {
                     LOG_INF("Response timeout");
                 }
-            } else if(sensors[i].data.type == TYPE_SOLYX14) {
+            } 
+            
+            else if(sensors[i].data.type == TYPE_SOLYX14) {
                 char cmd[] = "0XR0!";
                 cmd[0] = sensors[i].addr;
                 char expect[] = "0XR0!0";
@@ -158,10 +176,66 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                 {
                     LOG_INF("Response timeout");
                 }
-    
-                
-            }  
+            } 
+            //in the datasheet, R commands are not specified, only M and D?
+            //this could be for solinst levelogger
+            #if 0
+            else if(sensors[i].data.type == TYPE_SOLINST) {
+                char cmd_m[] = "0M!";
+                cmd_m[0] = sensors[i].addr;
+                char expect[] = "0M!0";
+                expect[0] = cmd_m[0];
+                expect[3] = cmd_m[0];
+                sdi12_cmd(cmd_m, true);
+                if (sdi12_wait_for(response, sizeof(response), expect) > 0)
+                {
+                    char *rsp = strstr(response, expect);
+                    if (rsp)
+                    {
+                        int wait = 0;
+                        int val_num = 0;
+                        //get wait time and num of vals
+                        int read_val = sscanf(rsp +strlen(expect), "%3d%1d", &wait, &val_num);
+                        if (read_val == 2 && val_num >= 2)
+                        {
+                            k_sleep(K_SECONDS(wait +1));//just in case +1
+                            // get data with D
+                            char cmd_d[] = "0D0!";
+                            cmd_d[0] = sensors[i].addr;
+                            char expect_d[] = "0D0!0";
+                            expect_d[0] = cmd_d[0];
+                            expect_d[4] = cmd_d[0];
+                            sdi12_cmd(cmd_d, true);
+                            if (sdi12_wait_for(response, sizeof(response), expect_d) > 0)
+                            {
+                                char *rsp_d = strstr(response, expect_d);
+                                if (rsp_d)
+                                {
+                                    int rv = sscanf(rsp_d + strlen(expect_d), "%f%f", &sensors[i].data.solinst.temp, &sensors[i].data.solinst.level);
+                                    if (rv == 2)
+                                    {
+                                        sensors[i].data.timestamp = time(NULL);
+                                        if (data_put(&sensors[i].data) < 0)
+                                        {
+                                            LOG_ERR("Failed to queue data");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        LOG_ERR("Data parse failed");
+                                    }
+                                } else
+                                {
+                                    LOG_ERR("aD0 response timeout");
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    LOG_ERR("aM! response timeout");
+                }
+            }
+            #endif
         }
-
     }
 }

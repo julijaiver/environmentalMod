@@ -108,6 +108,8 @@ static int get_message_len(const struct sensor_data *data)
         return 1 + 1 + strlen(data->id) + sizeof(uint32_t) + 3 * sizeof(float);
     case TYPE_SOLYX14:
         return 1 + 1 + strlen(data->id) + sizeof(uint32_t) + 5 * sizeof(float);
+    case TYPE_SOLINST:
+        return 1 + 1 + strlen(data->id) + sizeof(uint32_t) + 2 * sizeof(float);
     default:
         return -1;
     }
@@ -173,6 +175,12 @@ static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
         memcpy(buf + pos, &data->solyx.vwc, sizeof(float));
         pos += sizeof(float);
         memcpy(buf + pos, &data->solyx.pw_ec, sizeof(float));
+        pos += sizeof(float);
+        break;
+    case TYPE_SOLINST:
+        memcpy(buf + pos, &data->solinst.temp, sizeof(float));
+        pos += sizeof(float);
+        memcpy(buf + pos, &data->solinst.level, sizeof(float));
         pos += sizeof(float);
         break;
     default:
