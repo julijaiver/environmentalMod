@@ -13,3 +13,15 @@ config CLOUD_SEND_4G
 
 config CLOUD_SEND_LORA
 	bool "Use LoRaWAN to send data"
+
+config SEQUENCE_SAMPLES
+	int "Number of samples to be made on the sequence for each channel."
+	default 1
+
+config SEQUENCE_RESOLUTION
+	int "Set the resolution of the sequence readings."
+	default 12
+
+config SEQUENCE_32BITS_REGISTERS
+	bool "ADC data sequences are on 32bits"
+	default n
