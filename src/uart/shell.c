@@ -248,7 +248,7 @@ static int cmd_lora_write(const struct shell *sh, size_t argc, char **argv)
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_lora,
-    SHELL_CMD(write, NULL, "Scan SDI-12 bus.", cmd_lora_write),
+    SHELL_CMD(write, NULL, "Write command to lora (no spaces allowed)", cmd_lora_write),
     SHELL_CMD(read, NULL, "Read pending data.", cmd_lora_read),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
