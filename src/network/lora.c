@@ -650,7 +650,7 @@ void stConnected(smi *sm, const event *e)
 
 void stGetPayloadLen(smi *sm, const event *e)
 {
-	const char *expect[] = { "+LW: LEN", "+CMSGHEX: Length error", NULL };
+	const char *expect[] = { "+LW: LEN", /*"+CMSGHEX: Length error",*/ NULL }; //probably length error not neede here cause no sending, only timeout for comm 
 	int res = -1;
 
 	switch(e->ev) {
@@ -662,8 +662,8 @@ void stGetPayloadLen(smi *sm, const event *e)
 	case eExit:
 		break;
 	case eTick:
-		if(++sm->timer > 3) {
-			TRAN(stConnected);
+		if(++sm->timer > 10) {
+			TRAN(stConnected); 
 		}
 		break;
 	case eReceive:
@@ -678,12 +678,12 @@ void stGetPayloadLen(smi *sm, const event *e)
 			k_event_post(&lora_response_event, LORA_LEN_READY_BIT);
 			TRAN(stConnected);
 		}
-		if (res == 1)
+		/*if (res == 1)
 		{
 			LOG_ERR("Length error");
 			TRAN(stConnected);
 		}
-		break;
+		break;*/
 	default:
 		break;
 	}
@@ -724,6 +724,12 @@ void stSend(smi *sm, const event *e)
 				if (sm->count >= 3)
 				{
 					LOG_ERR("Message send failed after 3 attempts, going back to connect");
+					// after 3 failed attempts remove msg from queue & set error bit
+					if (k_msgq_get(&lora_payload_queue, &payload, K_NO_WAIT) == 0)
+					{
+						LOG_INF("Message removed from payload queue after 3 failed attempts");
+					}
+					k_event_post(&lora_response_event, LORA_SEND_ERROR_BIT);
 					TRAN(stJoin);
 					return;
 				} else {

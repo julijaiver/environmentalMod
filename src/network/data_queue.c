@@ -487,6 +487,10 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     } else if (ev & LORA_SEND_ERROR_BIT)
                     {
                         LOG_ERR("Error bit received, send failed");
+                    } else {
+                        LOG_ERR("LoRa send timeout");
+                        ++fail_count;
+                        LOG_INF("Send failed: %d", fail_count);
                     }
                 }
                 else
