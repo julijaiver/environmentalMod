@@ -407,7 +407,13 @@ static void cloud_send(void *p1, void *p2, void *p3)
     struct sensor_data data;
     k_timer_start(&cloud_send_timer, K_MINUTES(CLOUD_WAKEUP_PERIOD), K_MINUTES(CLOUD_WAKEUP_PERIOD));
     //timer for populating test data - to be removed
-    k_timer_start(&test_data_timer, K_SECONDS(10), K_SECONDS(10)); 
+    k_timer_start(&test_data_timer, K_SECONDS(0), K_MINUTES(30)); 
+
+    //accumulating statistic avg
+    static uint32_t total_payload_len = 0;
+    static uint32_t day_msg_count = 0;
+    static uint32_t total_send_count = 0;
+    static int last_day = -1;
 
     while (true)
     {
@@ -425,7 +431,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
             // wait for payload len
             int max_payload_len = lora_get_max_payload_len();
 
-            uint8_t payload[LORA_PAYLOAD_MAX_LEN]; // not sure about this what to set it to?
+            uint8_t payload[LORA_PAYLOAD_MAX_LEN]; 
             int msg_count = 0;
             int payload_pos = 0;
             bool error = false;
@@ -460,7 +466,7 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     if (ev & LORA_MESSAGE_SENT_BIT)
                     {
                         // testing log msg
-                        struct msg_log int_log = {
+                        /*struct msg_log int_log = {
                             .type = TYPE_LOG_MSG_INT,
                             .int_msg = {
                                 .id = 1,
@@ -468,7 +474,10 @@ static void cloud_send(void *p1, void *p2, void *p3)
                                 .int_vals = {payload_pos, fail_count}
                             }
                         };
-                        send_log_msg(&int_log);
+                        send_log_msg(&int_log);*/
+                        total_payload_len += payload_pos;
+                        total_send_count += lora_get_last_send_count();
+                        ++day_msg_count;
 
                         fail_count = 0;
                         // remove message from queue after transmit - should always succeed because we already peeked the message
@@ -499,7 +508,30 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     LOG_INF("Send failed: %d", fail_count);
                 }
             }
-
+        }
+         //send stats once per day
+        if (day_msg_count > 0) 
+        {
+            time_t t = time(NULL);
+            int today = (int)(t / 86400); // days since epoch
+            struct tm now;
+            gmtime_r(&t, &now);
+            if (now.tm_hour >= 21 && today != last_day) //time can be set when to send
+            {
+                struct msg_log int_log = {
+                    .type = TYPE_LOG_MSG_INT,
+                    .int_msg = {
+                        .id = 1, //id can be set here differently
+                        .count = 3,
+                        .int_vals = {total_payload_len / day_msg_count, total_send_count / day_msg_count, day_msg_count}
+                    }
+                };
+                send_log_msg(&int_log);
+                total_payload_len = 0;
+                total_send_count = 0;
+                day_msg_count = 0;
+                last_day = today;
+            }
         }
     }
 }

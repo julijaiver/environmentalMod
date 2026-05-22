@@ -17,5 +17,6 @@ int lora_raw_read(char *str, int max_len);
 
 int lora_queue_payload(uint8_t *buf, int len);
 int lora_get_max_payload_len(void);
+int lora_get_last_send_count(void);
 
 #endif

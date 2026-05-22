@@ -123,10 +123,9 @@ static void lora_tick(struct k_timer *timer);
 
 K_MSGQ_DEFINE(lora_event_queue, sizeof(event), 20, 1);
 K_TIMER_DEFINE(lora_tick_timer, lora_tick, NULL);
-//K_EVENT_DEFINE(lora_events);              
-struct k_event lora_response_event;
 
 static int lora_max_payload_len = 50; // default before adding val from lw: len command
+static int lora_last_send_count = 0;
 
 static void lora_tick(struct k_timer *timer)
 {
@@ -650,7 +649,7 @@ void stConnected(smi *sm, const event *e)
 
 void stGetPayloadLen(smi *sm, const event *e)
 {
-	const char *expect[] = { "+LW: LEN", /*"+CMSGHEX: Length error",*/ NULL }; //probably length error not neede here cause no sending, only timeout for comm 
+	const char *expect[] = { "+LW: LEN", NULL }; //probably length error not neede here cause no sending, only timeout for comm 
 	int res = -1;
 
 	switch(e->ev) {
@@ -678,12 +677,6 @@ void stGetPayloadLen(smi *sm, const event *e)
 			k_event_post(&lora_response_event, LORA_LEN_READY_BIT);
 			TRAN(stConnected);
 		}
-		/*if (res == 1)
-		{
-			LOG_ERR("Length error");
-			TRAN(stConnected);
-		}
-		break;*/
 	default:
 		break;
 	}
@@ -716,7 +709,8 @@ void stSend(smi *sm, const event *e)
 		{
 			if(++sm->timer > 10) 
 			{
-				LOG_WRN("Length query timeout, retryint");
+				k_event_post(&lora_response_event, LORA_SEND_ERROR_BIT);
+				LOG_WRN("Initial send failed, retrying");
 				TRAN(stConnected);
 			} 
 		} else {
@@ -751,6 +745,7 @@ void stSend(smi *sm, const event *e)
 
 		if (res == 0) {
 			LOG_INF("ACK received");
+			lora_last_send_count = sm->count;
 			k_event_post(&lora_response_event, LORA_MESSAGE_SENT_BIT);
 			if (k_msgq_get(&lora_payload_queue, &payload, K_NO_WAIT) == 0)
 			{
@@ -831,6 +826,11 @@ int lora_get_max_payload_len(void)
 	}
 	return lora_max_payload_len;
 }
+
+int lora_get_last_send_count(void)             
+  {                                                                
+      return lora_last_send_count;
+  }
 
 static int lora_send_hex(smi *sm, struct lora_payload *payload)
 {
