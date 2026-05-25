@@ -482,16 +482,17 @@ void stClass(smi *sm, const event *e)
 	}
 }
 
+#define DATA_RATE  "1"
 
 void stDr(smi *sm, const event *e)
 {
-	const char *expect[] = { "+DR: DR5", NULL };
+	const char *expect[] = { "+DR: DR" DATA_RATE, NULL };
 
 	switch(e->ev) {
 	case eEnter:
 		lora_flush(sm);
 		smClear(sm);
-		lora_write(sm, "AT+DR=5\r\n");
+		lora_write(sm, "AT+DR=" DATA_RATE "\r\n");
 		break;
 	case eExit:
 		break;
