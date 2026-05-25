@@ -2,6 +2,8 @@
 #define COMMON_H_INCLUDED_
 
 extern struct k_event envisens_events;
+extern int bat_voltage;
+
 
 #define BOOT_HALT_EVENT      1
 #define BOOT_CONTINUE_EVENT  2

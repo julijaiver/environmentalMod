@@ -55,6 +55,8 @@ k_tid_t ruuvi_scan_thread_id;
 
 K_EVENT_DEFINE(envisens_events);
 
+int bat_voltage;
+
 void boot_halt(void)
 {
     k_event_post(&envisens_events, BOOT_HALT_EVENT);
@@ -177,8 +179,10 @@ int main(void)
 						if ((rc < 0) || vrefs_mv[channel_index] == 0) {
 							LOG_ERR("value in mV not available");
 						} else {
-							LOG_INF("Battery voltage: %d", (int)(val_mv * 5.6)); // multiplier 5.6 based on voltage divider
 							// todo: report battery voltage
+							bat_voltage = (int)(val_mv * 5.6);
+							LOG_INF("Battery voltage: %d", bat_voltage); // multiplier 5.6 based on voltage divider
+
 						}
 					
 					}

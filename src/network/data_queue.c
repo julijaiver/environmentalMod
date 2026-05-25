@@ -16,7 +16,7 @@ static void cloud_send(void *p1, void *p2, void *p3);
 
 #define CLOUD_SEND_STACK_SIZE 16384 // 8192
 #define CLOUD_SEND_THREAD_PRIORITY 7
-#define CLOUD_WAKEUP_PERIOD 60
+#define CLOUD_WAKEUP_PERIOD 10
 
 // size of max len for msghex
 #define RUUVI_ID_LEN 6
@@ -407,7 +407,8 @@ static void cloud_send(void *p1, void *p2, void *p3)
     struct sensor_data data;
     k_timer_start(&cloud_send_timer, K_MINUTES(CLOUD_WAKEUP_PERIOD), K_MINUTES(CLOUD_WAKEUP_PERIOD));
     //timer for populating test data - to be removed
-    k_timer_start(&test_data_timer, K_SECONDS(0), K_MINUTES(30)); 
+    BOOT_WAIT();
+    //k_timer_start(&test_data_timer, K_SECONDS(0), K_MINUTES(30)); 
 
     //accumulating statistic avg
     static uint32_t total_payload_len = 0;
@@ -522,8 +523,8 @@ static void cloud_send(void *p1, void *p2, void *p3)
                     .type = TYPE_LOG_MSG_INT,
                     .int_msg = {
                         .id = 1, //id can be set here differently
-                        .count = 3,
-                        .int_vals = {total_payload_len / day_msg_count, total_send_count / day_msg_count, day_msg_count}
+                        .count = 4,
+                        .int_vals = {total_payload_len / day_msg_count, total_send_count / day_msg_count, day_msg_count, bat_voltage}
                     }
                 };
                 send_log_msg(&int_log);
