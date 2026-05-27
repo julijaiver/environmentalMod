@@ -79,6 +79,12 @@ int main(void)
 
 
 	nv_params_init();
+	//check if lora appkey is set 
+	char lora_appkey[33];
+	if (nvs_get_lora_appkey(lora_appkey) <= 0) 
+	{
+		LOG_WRN("LoRa AppKey not set in NVS. Use lora set_appkey <key> command to set it.");
+	}
 
 #if CONFIG_SDI12
 	sdi12_scan_thread_id = k_thread_create(&sdi12_scan_thread_data, sdi12_stack_area,

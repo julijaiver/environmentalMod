@@ -26,11 +26,13 @@ static struct nvs_fs fs;
 #define BLE_DEVICE_NV_ADDR   1
 #define SDI12_DEVICE_NV_ADDR  2
 #define MEASUREMENT_INTERVAL_NV_ADDR  3
+#define LORA_APPKEY_NV_ADDR 4
 
 
 static const bt_addr_t null_bt = {};
 
 static bt_addr_t ruuvi_tags[MAX_RUUVI_TAG];
+static char lora_appkey[33];
 
 
 int nv_params_init(void) {
@@ -200,3 +202,17 @@ int nvs_set_interval(int interval)
     return interval;
 }
 
+int nvs_get_lora_appkey(char *key) {
+    int rc = nvs_read(&fs, LORA_APPKEY_NV_ADDR, lora_appkey, sizeof(lora_appkey));
+    if (rc > 0) {
+        memcpy(key, lora_appkey, sizeof(lora_appkey));
+    }
+    return rc;
+}
+
+int nvs_set_lora_appkey(const char *key) {
+    memcpy(lora_appkey, key, sizeof(lora_appkey));
+    int rc = nvs_write(&fs, LORA_APPKEY_NV_ADDR, lora_appkey, sizeof(lora_appkey));
+    
+    return rc;
+}

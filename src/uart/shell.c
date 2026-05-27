@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #include "nv_params.h"
 #include "data_queue.h"
@@ -214,7 +215,7 @@ static int cmd_sdi12_send(const struct shell *sh, size_t argc, char **argv)
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_sdi12,
     SHELL_CMD(scan, NULL, "Scan SDI-12 bus.", cmd_sdi12_scan),
     SHELL_CMD(query, NULL, "Query all addresses on the bus", cmd_sdi12_query),
-	SHELL_CMD(addr, NULL, "Write new address to device.", cmd_sdi12_addr),
+	SHELL_CMD(addr, NULL, "Change old address to new address.", cmd_sdi12_addr),
 	SHELL_CMD(send, NULL, "Send command (any text) to SDI-12 bus.", cmd_sdi12_send),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
@@ -247,10 +248,58 @@ static int cmd_lora_write(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+static int cmd_lora_get_deveui(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	/* is it better to use this or raw?
+	cmd_lora_write(sh, argc, (char*[]){"", "AT+ID=DevEui"}); */
+	lora_raw_write("AT+ID=DevEui\r\n");            
+  	cmd_lora_read(sh, 0, NULL);  
+
+	return 0;
+}
+
+static int cmd_lora_get_appkey(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	//appkey is gotten only from nvs. Not possible to read from module
+	char stored_key[33];
+	if (nvs_get_lora_appkey(stored_key) <= 0) {
+		shell_print(sh, "WRN: No AppKey stored in NVS.");
+		return 0;
+	}
+	shell_print(sh, "%s", stored_key);
+	return 0;
+}
+
+static int cmd_lora_set_appkey(const struct shell *sh, size_t argc, char **argv)
+{
+	if(argc < 2) return -1;
+
+	//char hex str write to nvs
+	char key[33];
+	strncpy(key, argv[1], sizeof(key)-1);
+	key[sizeof(key)-1] = '\0';
+
+	nvs_set_lora_appkey(key);
+
+	lora_raw_write("AT+KEY=APPKEY,\"");
+	lora_raw_write(argv[1]);
+	lora_raw_write("\"\r\n");
+	cmd_lora_read(sh, argc, argv);
+
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_lora,
     SHELL_CMD(write, NULL, "Write command to lora (no spaces allowed)", cmd_lora_write),
     SHELL_CMD(read, NULL, "Read pending data.", cmd_lora_read),
+    SHELL_CMD(get_deveui, NULL, "Get device EUI.", cmd_lora_get_deveui),
+    SHELL_CMD(get_appkey, NULL, "Get AppKey.", cmd_lora_get_appkey),
+    SHELL_CMD(set_appkey, NULL, "Set new AppKey.", cmd_lora_set_appkey),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 
-SHELL_CMD_REGISTER(lora, &sub_lora, "lora commands: write, read", NULL);
+SHELL_CMD_REGISTER(lora, &sub_lora, "lora commands: write, read, get_deveui, get_appkey, set_appkey", NULL);

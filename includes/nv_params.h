@@ -11,6 +11,8 @@ int nvs_clear_tags(void);
 int nvs_read_tags(void);
 int nvs_print_tags(void);
 int nvs_tag_add(const char *tagstr);
+int nvs_get_lora_appkey(char *key);
+int nvs_set_lora_appkey(const char *key);
 
 int nvs_get_interval(void);
 
