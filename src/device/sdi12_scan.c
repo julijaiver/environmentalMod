@@ -22,6 +22,41 @@ struct sdi12_sensors {
     struct sensor_data data;
 };
 
+static void read_teros_solyx_sn(char *dst, size_t size, const char *src) 
+{
+    // src points to METER so the optional data starts from str + 17
+    //0I!014METER   SLYX14100SX14000000208   
+    if(strlen(src) < 17) {
+        *dst = 0;
+        return;
+    }
+    strncpy(dst, src + 17, size); // copy string starting from (optional) serial number
+    dst[size - 1] = 0;  // ensure termination
+}
+
+
+static void read_solinst_sn(char *dst, size_t size, const char *src) 
+{
+    // src points to SOLINST so the optional data starts from str + 17
+    //0I!013SOLINST M10/C XD11.006 1090717
+    if(size < 4 || strlen(src) < 17) {
+        *dst = 0;
+        return;
+    }
+    strcpy(dst, "SOL"); // prefix SN with char identifier to avoid possible SN conflict
+    size -= 4;
+    src += 17;
+    // solinst optional field contains firmware revision (5 chars) before serial number
+    for(int i = 0; *src && i < 5; ++i) ++src;
+    // there may be leading space to skip
+    while(*src == ' ') ++src;
+
+    strncat(dst, src, size); // append (optional) serial number
+    //dst[size - 1] = 0;  // ensure termination
+
+}
+
+
 static int sdi12_scan_sensors(struct sdi12_sensors *sn, int max_sensors) 
 {
     int sid = 0;
@@ -36,35 +71,20 @@ static int sdi12_scan_sensors(struct sdi12_sensors *sn, int max_sensors)
             struct known_sensors {
                 const char *identifier;
                 int type;
+                void (*sn_reader)(char *, size_t, const char *);
             } known[] = {
-                { "METER   TER12 ", TYPE_TEROS12 },
-                { "METER   SLYX14", TYPE_SOLYX14 },
-                { "SOLINST ", TYPE_SOLINST }, // SOLINST M20? the model num after solinst?
+                { "METER   TER12 ", TYPE_TEROS12, read_teros_solyx_sn },
+                { "METER   SLYX14", TYPE_SOLYX14, read_teros_solyx_sn },
+                { "SOLINST ", TYPE_SOLINST, read_solinst_sn }, 
                 { NULL, TYPE_UNKNOWN }
             }; 
-                
-			response[strcspn(response, "\r\n")] = 0;
+            
+ 			response[strcspn(response, "\r\n")] = 0;
 
             for( struct known_sensors *kn = known; kn->identifier != NULL; ++kn) {
                 char *str = strstr(response, kn->identifier);
                 if (str != NULL) {
-                    // for solinst the identifier format a bit different? From dsh: 0I! 013SOLINST M20 S2 1.000 1017687<CR><LF>
-                    // find the last space and record the num after
-                    #if 0
-                    if (kn->type == TYPE_SOLINST)
-                    {
-                        char *serial = strrchr(response, ' ');
-                        if (serial && *(serial + 1) != '\0')
-                        {
-                            strncpy(sn[sid].data.id, serial + 1, sizeof(sn[sid].data.id));
-                            sn[sid].data.id[sizeof(sn[sid].data.id) - 1] = 0; 
-                        } else {
-                            LOG_ERR("Failed to parse solinst serial number");
-                        }
-                    }
-                    #endif
-                    strncpy(sn[sid].data.id, str + 17, sizeof(sn[sid].data.id)); // copy string starting from (optional) serial number
-                    sn[sid].data.id[sizeof(sn[sid].data.id) - 1] = 0;           // ensure termination
+                    kn->sn_reader(sn[sid].data.id, sizeof(sn[sid].data.id), str); 
                     sn[sid].data.type = kn->type;
                     sn[sid].addr = cmd[0];
                     ++sid;
@@ -179,7 +199,7 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
             } 
             //in the datasheet, R commands are not specified, only M and D?
             //this could be for solinst levelogger
-            #if 0
+            #if 1
             else if(sensors[i].data.type == TYPE_SOLINST) {
                 char cmd_m[] = "0M!";
                 cmd_m[0] = sensors[i].addr;
