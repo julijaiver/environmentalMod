@@ -17,6 +17,7 @@ LOG_MODULE_REGISTER(ruuvi);
 #include "common.h"
 
 struct k_event ruuvi_tag_scan_event;
+static float last_pressure = 0.0f;
 
 static struct bt_le_scan_param scan_params = {
     .type = BT_LE_SCAN_TYPE_PASSIVE,
@@ -49,6 +50,8 @@ static void ruuvi_scan_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type
                 // LOG_HEXDUMP_INF(ad->data, ad->len, "Data: ");
                 LOG_INF("t: %f, p: %f, h: %f, b: %f", (double)data.ruuvi.temperature,
                         (double)data.ruuvi.pressure, (double)data.ruuvi.humidity, (double)data.ruuvi.bat_voltage);
+                //here updating last pressure value
+                last_pressure = data.ruuvi.pressure;
                 // we need to use intermediate queue because we are in callback. 
                 // Sending to cloud transmit queue may block to wait for space in the queue
                 if (k_msgq_put(&ruuvi_scan_queue, &data, K_NO_WAIT) == 0)
@@ -58,6 +61,11 @@ static void ruuvi_scan_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type
             }
         }
     }
+}
+
+float ruuvi_get_last_pressure(void) {
+    // will return 0.0f declared above if no other reading
+    return last_pressure;
 }
 
 #define MAX_TRIES 5

@@ -5,5 +5,6 @@
 #define RUUVI_THREAD_PRIORITY 7
 
 void ruuvi_scan_thread(void *arg0, void *arg1, void *arg2);
+float ruuvi_get_last_pressure(void);
 
 #endif

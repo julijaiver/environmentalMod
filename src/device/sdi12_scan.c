@@ -16,6 +16,7 @@ LOG_MODULE_REGISTER(sdi12_scan);
 #include "sdi12_scan.h"
 #include "data_types.h"
 #include "data_queue.h"
+#include "ruuvi_scan.h"
 
 struct sdi12_sensors {
     char addr;
@@ -235,6 +236,15 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
                                     if (rv == 2)
                                     {
                                         sensors[i].data.timestamp = time(NULL);
+                                        //here calculating compensated w.lvl (neglecting elevation diff cause not using weather station)
+                                        float pressure_mbar_m = ruuvi_get_last_pressure() * 0.0101972f;
+                                        if (pressure_mbar_m == 0.0f) {
+                                            LOG_WRN("No pressure data from ruuvi, compensated level not calculated");
+                                            sensors[i].data.solinst.compensated_level = 0.0f; 
+                                        } else {
+                                            sensors[i].data.solinst.compensated_level = sensors[i].data.solinst.level - pressure_mbar_m;
+                                        }
+
                                         if (data_put(&sensors[i].data) < 0)
                                         {
                                             LOG_ERR("Failed to queue data");

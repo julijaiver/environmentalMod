@@ -43,6 +43,7 @@ struct solyx14 {
 struct solinst_levelogger {
     float temp;
     float level;
+    float compensated_level;
 };
 
 struct sensor_data {
