@@ -129,10 +129,16 @@ static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
     {
         id_len = RUUVI_ID_LEN;
         buf[pos++] = id_len;
-        sscanf(data->id, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-               &buf[pos], &buf[pos + 1], &buf[pos + 2], &buf[pos + 3], &buf[pos + 4], &buf[pos + 5]);
+
+        unsigned int bytes[RUUVI_ID_LEN];
+        sscanf(data->id, "%x:%x:%x:%x:%x:%x",
+               &bytes[0], &bytes[1], &bytes[2], &bytes[3], &bytes[4], &bytes[5]);
+        for (int i = 0; i < RUUVI_ID_LEN; ++i)
+        {
+            buf[pos + i] = (uint8_t)bytes[i];
+        }
         //LOG_INF("Ruuvi: %s, %02X %02X %02X %02X %02X %02X", data->id, buf[pos+0], buf[pos+1], buf[pos+2], buf[pos+3], buf[pos+4], buf[pos+5]);
-        pos += id_len;
+        pos += RUUVI_ID_LEN;
     }
     else
     {
