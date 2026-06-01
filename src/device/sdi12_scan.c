@@ -117,7 +117,8 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
 
     while (true)
     {
-        k_event_wait(&envisens_events, TAKE_SAMPLE_EVENT, true, K_FOREVER);
+        k_event_wait(&envisens_events, SDI12_READ_EVENT, false, K_FOREVER);
+        k_event_clear(&envisens_events, SDI12_READ_EVENT);
 
         for( int i = 0; i < sensor_count; ++i) {
             if(sensors[i].data.type == TYPE_TEROS12)

@@ -107,11 +107,14 @@ void ruuvi_scan_thread(void *arg0, void *arg1, void *arg2)
     while (true)
     {
         struct sensor_data ruuvi;
+        k_event_wait(&envisens_events, RUUVI_READ_EVENT, false, K_FOREVER);
+        k_event_clear(&envisens_events, RUUVI_READ_EVENT);
+
         LOG_INF("Starting bluetooth scan %02X", all_tags);
         // clear event bits before scan starts
         k_event_clear(&ruuvi_tag_scan_event, all_tags);
         int err = bt_le_scan_start(&scan_params, ruuvi_scan_found);
-        seen_tags = k_event_wait_all(&ruuvi_tag_scan_event, all_tags, false, K_MSEC(MEASURE_CYCLE_SLEEP));
+        seen_tags = k_event_wait_all(&ruuvi_tag_scan_event, all_tags, false, K_MSEC(MEASURE_CYCLE_MINUTES * 30000)); // 30000 --> wait for only half of the period
         LOG_INF("Found sensors: %02X", seen_tags);
         err = bt_le_scan_stop();
         while (k_msgq_get(&ruuvi_scan_queue, &ruuvi, K_NO_WAIT) == 0) {
@@ -119,8 +122,6 @@ void ruuvi_scan_thread(void *arg0, void *arg1, void *arg2)
                 LOG_ERR("Transmit queue error");
             }
         }
-
-        k_msleep(MEASURE_CYCLE_SLEEP);
     }
 }
 

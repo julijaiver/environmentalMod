@@ -131,6 +131,7 @@ static int serialize_payload(uint8_t *buf, const struct sensor_data *data)
         buf[pos++] = id_len;
         sscanf(data->id, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
                &buf[pos], &buf[pos + 1], &buf[pos + 2], &buf[pos + 3], &buf[pos + 4], &buf[pos + 5]);
+        //LOG_INF("Ruuvi: %s, %02X %02X %02X %02X %02X %02X", data->id, buf[pos+0], buf[pos+1], buf[pos+2], buf[pos+3], buf[pos+4], buf[pos+5]);
         pos += id_len;
     }
     else
