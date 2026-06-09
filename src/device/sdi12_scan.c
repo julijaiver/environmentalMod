@@ -100,7 +100,185 @@ static int sdi12_scan_sensors(struct sdi12_sensors *sn, int max_sensors)
     return sid;
 }
 
+//functions for getting & parsing different sensor data responses
+static int read_teros12(char addr, struct sensor_data *data)
+{
+    char response[128];
+    char cmd[] = "0R0!";
+    cmd[0] = addr;  
+    char expect[] = "0R0!0";
+    expect[0] = cmd[0];
+    expect[4] = cmd[0];
 
+    sdi12_cmd(cmd, true);
+    if (sdi12_wait_for(response, sizeof(response), expect) > 0) 
+    {
+        char *rsp = strstr(response, expect);
+        if (!rsp)
+        {
+            LOG_ERR("No match found");
+            return -1;
+        }
+        int rv = sscanf(rsp + strlen(expect), "%f%f%f", &data->teros.vwc, &data->teros.temp, &data->teros.ec);
+        if (rv != 3)
+        {
+            LOG_ERR("Data parse failed");
+            return -1;
+        }
+        data->timestamp = time(NULL);
+        return data_put(data);
+    }
+    else {
+        LOG_ERR("Response timeout");
+        return -1;
+    }
+}
+
+static int read_solyx14(char addr, struct sensor_data *data) 
+{
+    char response[128];
+    char cmd[] = "0XR0!";
+    cmd[0] = addr;  
+    char expect[] = "0XR0!0";
+    expect[0] = cmd[0];
+    expect[5] = cmd[0];
+
+    sdi12_cmd(cmd, true);
+    if (sdi12_wait_for(response, sizeof(response), expect) > 0) 
+    {
+        char *rsp = strstr(response, expect);
+        if (!rsp)
+        {
+            LOG_ERR("No match found");
+            return -1;
+        }
+        int rv = sscanf(rsp + strlen(expect), "%f%f%f", &data->solyx.epsr, &data->solyx.temp, &data->solyx.bulk_ec);
+        if (rv != 3)
+        {
+            LOG_ERR("Data parse failed");
+            return -1;
+        }
+        data->timestamp = time(NULL);
+        //calculating vwc and pw_ec values from raw
+        float epsp = 80.3f - 0.37f * (data->solyx.temp - 20.0f);
+        data->solyx.vwc = 0.0985f * sqrtf(data->solyx.epsr) - 0.159f;
+        data->solyx.pw_ec = (epsp * data->solyx.bulk_ec) / (data->solyx.epsr - 4.1f);
+        return data_put(data);
+    }
+    else {
+        LOG_ERR("Response timeout");
+        return -1;
+    }
+}
+
+static int read_solinst(char addr, struct sensor_data *data)
+{
+    char response[128];
+    char cmd_m[] = "0M!";
+    cmd_m[0] = addr;
+    char expect[] = "0M!0";
+    expect[0] = cmd_m[0];
+    expect[3] = cmd_m[0];
+    sdi12_cmd(cmd_m, true);
+    if (sdi12_wait_for(response, sizeof(response), expect) > 0)
+    {
+        char *rsp = strstr(response, expect);
+        if (rsp)
+        {
+            int wait = 0;
+            int val_num = 0;
+            //get wait time and num of vals
+            int read_val = sscanf(rsp +strlen(expect), "%3d%1d", &wait, &val_num);
+            if (read_val == 2 && val_num >= 2)
+            {
+                k_sleep(K_SECONDS(wait +1));//just in case +1
+                // get data with D
+                char cmd_d[] = "0D0!";
+                cmd_d[0] = addr;
+                char expect_d[] = "0D0!0";
+                expect_d[0] = cmd_d[0];
+                expect_d[4] = cmd_d[0];
+                sdi12_cmd(cmd_d, true);
+                if (sdi12_wait_for(response, sizeof(response), expect_d) > 0)
+                {
+                    char *rsp_d = strstr(response, expect_d);
+                    if (rsp_d)
+                    {
+                        int rv = sscanf(rsp_d + strlen(expect_d), "%f%f", &data->solinst.temp, &data->solinst.level);
+                        if (rv == 2)
+                        {
+                            data->timestamp = time(NULL);
+                            //here calculating compensated w.lvl (neglecting elevation diff cause not using weather station)
+                            float pressure_mbar_m = ruuvi_get_last_pressure() * 0.0101972f;
+                            if (pressure_mbar_m == 0.0f) {
+                                LOG_WRN("No pressure data from ruuvi, compensated level not calculated");
+                                data->solinst.compensated_level = 0.0f; 
+                            } else {
+                                data->solinst.compensated_level = data->solinst.level - pressure_mbar_m;
+                            }
+
+                            return data_put(data);
+                        }
+                        else
+                        {
+                            LOG_ERR("Data parse failed");
+                            return -1;
+                        }
+                    }
+                } else
+                {
+                    LOG_ERR("aD0 response timeout");
+                    return -1;
+                }
+            }
+        } else {
+            return -1;
+        }
+    } else {
+        LOG_ERR("aM! response timeout");
+        return -1;
+    }
+    return -1;
+}
+
+void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
+{
+    struct sdi12_sensors sensors[3] = { { 0 }, { 0 }, { 0 } };
+
+    sdi12_init();
+
+    BOOT_WAIT();
+
+    int sensor_count = sdi12_scan_sensors(sensors, 3);
+
+    CLOCK_WAIT();
+
+    static const struct{
+        int type;
+        int (*read_func)(char addr, struct sensor_data *data);
+    } parse_sensor_data[] = {
+        { TYPE_TEROS12, read_teros12 },
+        { TYPE_SOLYX14, read_solyx14 },
+        { TYPE_SOLINST, read_solinst },
+    };
+
+    while(true)
+    {
+        k_event_wait(&envisens_events, SDI12_READ_EVENT, false, K_FOREVER);
+        k_event_clear(&envisens_events, SDI12_READ_EVENT);
+
+        for (int i=0; i < sensor_count; ++i) {
+            for (int j=0; j < ARRAY_SIZE(parse_sensor_data); ++j) {
+                if (sensors[i].data.type == parse_sensor_data[j].type) {
+                    parse_sensor_data[j].read_func(sensors[i].addr, &sensors[i].data);
+                    break;
+                } 
+            }
+        }
+    }
+}
+
+#if 0
 void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
 {
     char response[128];
@@ -270,3 +448,4 @@ void sdi12_scan_thread(void *arg0, void *arg1, void *arg2)
         }
     }
 }
+#endif
