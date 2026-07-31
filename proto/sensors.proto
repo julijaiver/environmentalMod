@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+message RuuviData {
+    bytes  mac         = 1; 
+    uint32 timestamp   = 2;
+    float  temp        = 3;
+    float  humidity    = 4;
+    float  pressure    = 5;
+    float  bat_voltage = 6;
+}
+
+message Teros12Data {
+    string id        = 1;
+    uint32 timestamp = 2;
+    float  vwc       = 3;
+    float  temp      = 4;
+    float  ec        = 5;
+}
+
+message Solyx14Data {
+    string id        = 1;
+    uint32 timestamp = 2;
+    float  epsr      = 3;
+    float  temp      = 4;
+    float  bulk_ec   = 5;
+    // vwc and pw_ec calculated server-side
+}
+
+message SolinstData {
+    string id                = 1;
+    uint32 timestamp         = 2;
+    float  temp              = 3;
+    float  level             = 4;
+    float  compensated_level = 5;
+}
+
+message SensorPayload {
+    repeated RuuviData   ruuvi   = 1;
+    repeated Teros12Data teros   = 2;
+    repeated Solyx14Data solyx   = 3;
+    repeated SolinstData solinst = 4;
+}
+
+message LogInt {
+    repeated uint32 vals = 1;
+}
+
+message LogTxt {
+    string msg = 1;
+} 
+
+message LogPayload {
+    oneof content {
+        LogInt int_log = 1;
+        LogTxt txt_log = 2;
+    }
+}

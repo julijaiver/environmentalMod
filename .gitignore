@@ -9,4 +9,7 @@ includes/*.json
 documentation/
 debug/
 backup/
-tmp.md
+tmp.md.DS_Store
+.idea/
+python/.DS_Store
+.DS_Store

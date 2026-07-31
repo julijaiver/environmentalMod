@@ -1,0 +1,19 @@
+# Static allocation constraints for nanopb
+# String fields need explicit max_size (no dynamic allocation on embedded)
+# Repeated fields need max_count
+
+RuuviData.mac               max_size:6 fixed_length:true
+
+Teros12Data.id              max_size:32
+
+Solyx14Data.id              max_size:32
+
+SolinstData.id              max_size:32
+
+SensorPayload.ruuvi         max_count:4
+SensorPayload.teros         max_count:4
+SensorPayload.solyx         max_count:4
+SensorPayload.solinst       max_count:4
+
+LogInt.vals     max_count:12
+LogTxt.msg      max_size:50
