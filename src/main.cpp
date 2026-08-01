@@ -43,14 +43,13 @@ static uint32_t vrefs_mv[] = {DT_FOREACH_CHILD_SEP(ADC_NODE, CHANNEL_VREF, (,))}
 
 static constexpr float BAT_VOLTAGE_DIVIDER_RATIO = 5.6f;
 
+//in total 4 threads running, all started in constructors (lora_sm, both scanners, cloud_sender)
 NvStorage nv_storage;
 SDI12Bus sdi12_bus;
 LoRaStateMachine lora_sm;
 
 static RuuviScanner ruuvi_scanner(ruuvi_topic, nv_storage);
-#if CONFIG_SDI12
 static SDI12Scanner sdi12_scanner(sdi12_bus, ruuvi_scanner, teros_topic, solyx_topic, solinst_topic);
-#endif
 
 #if CONFIG_CLOUD_SEND_LORA
 static LoRaTransport lora_transport(lora_sm);
