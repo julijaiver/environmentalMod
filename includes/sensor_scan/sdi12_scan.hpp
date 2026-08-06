@@ -23,7 +23,7 @@ class SDI12Scanner {
         struct k_thread thread_;
         struct sensor_info {
             char addr;
-            int type;
+            SensorType type;
             char id[32];
         };
 

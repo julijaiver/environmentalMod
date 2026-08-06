@@ -13,7 +13,7 @@ LOG_MODULE_REGISTER(lora);
 #define DATA_RATE "1"
 #define LORA_SM_PRIORITY 7
 
-K_THREAD_STACK_DEFINE(lora_stack_, 4096);
+K_THREAD_STACK_DEFINE(lora_stack_, 8192);
 
 K_EVENT_DEFINE(lora_response_event);
 
@@ -110,17 +110,16 @@ int LoRaStateMachine::lora_write(Smi *sm, const char *str)
     return transmit(str);
 }
 
-int LoRaStateMachine::lora_wait_for(Smi *sm, const char **expect)
+int LoRaStateMachine::lora_wait_for(Smi *sm, std::initializer_list<const char*> expect)
 {
     int ret = -1;
 
-    // compact any NUL left from previous parse
-    int len = strlen(sm->buffer);
-    if (len < sm->pos) {
-        memmove(sm->buffer, sm->buffer + len + 1, sm->pos - len);
-        sm->pos -= len + 1;
-        LOG_INF("Pending: %s", sm->buffer);
-    }
+    int len = strlen(sm->buffer);                                                    
+    if (len < sm->pos) {                                                             
+        memmove(sm->buffer, sm->buffer + len + 1, sm->pos - len);                    
+        sm->pos -= len + 1;                                                          
+        LOG_INF("Pending: %s", sm->buffer);                                        
+    }   
 
     lora_read(sm);
 
@@ -129,11 +128,13 @@ int LoRaStateMachine::lora_wait_for(Smi *sm, const char **expect)
         sm->buffer[dist] = '\0';
         LOG_INF("Response: [%d] %s", sm->pos - dist - 1, sm->buffer);
 
-        for (int i = 0; expect[i] != nullptr; ++i) {
-            if (strstr(sm->buffer, expect[i])) {
+        int i = 0;
+        for (const char *e: expect) {
+            if (strstr(sm->buffer, e)) {
                 ret = i;
                 break;
             }
+            ++i;
         }
         if (ret < 0) ret = -2;
 
@@ -318,8 +319,6 @@ int LoRaStateMachine::set_system_time(const char *str)
 
 void LoRaStateMachine::st_init(Smi *sm, const Ev *e)
 {
-    const char *expect[] = { "+AT: OK", nullptr };
-
     switch (e->ev) {
     case EvType::Enter:
         lora_flush(sm);
@@ -329,7 +328,7 @@ void LoRaStateMachine::st_init(Smi *sm, const Ev *e)
         lora_write(sm, "AT\r\n");
         break;
     case EvType::Receive:
-        if (lora_wait_for(sm, expect) == 0) { 
+        if (lora_wait_for(sm, { "+AT: OK" }) == 0) { 
             TRAN(st_mode);
         }
         break;
@@ -340,8 +339,6 @@ void LoRaStateMachine::st_init(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_mode(Smi *sm, const Ev *e)
 {
-    const char *expect[] = { "+MODE: LWOTAA", nullptr };
-
     switch (e->ev) {
     case EvType::Enter:
         lora_flush(sm);
@@ -354,7 +351,9 @@ void LoRaStateMachine::st_mode(Smi *sm, const Ev *e)
         }
         break;
     case EvType::Receive:
-        if (lora_wait_for(sm, expect) == 0) { TRAN(st_class); }
+        if (lora_wait_for(sm, { "+MODE: LWOTAA" }) == 0) { 
+            TRAN(st_class); 
+        }
         break;
     default:
         break;
@@ -363,8 +362,6 @@ void LoRaStateMachine::st_mode(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_class(Smi *sm, const Ev *e)
 {
-    const char *expect[] = { "+CLASS: A", nullptr };
-
     switch (e->ev) {
     case EvType::Enter:
         lora_flush(sm);
@@ -375,7 +372,7 @@ void LoRaStateMachine::st_class(Smi *sm, const Ev *e)
         if (++sm->timer > 3) { TRAN(st_init); }
         break;
     case EvType::Receive:
-        if (lora_wait_for(sm, expect) == 0) { 
+        if (lora_wait_for(sm, { "+CLASS: A" }) == 0) { 
             TRAN(st_dr); 
         }
         break;
@@ -386,8 +383,6 @@ void LoRaStateMachine::st_class(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_dr(Smi *sm, const Ev *e)
 {
-    const char *expect[] = { "+DR: DR" DATA_RATE, nullptr };
-
     switch (e->ev) {
     case EvType::Enter:
         lora_flush(sm);
@@ -398,7 +393,7 @@ void LoRaStateMachine::st_dr(Smi *sm, const Ev *e)
         if (++sm->timer > 3) { TRAN(st_init); }
         break;
     case EvType::Receive:
-        if (lora_wait_for(sm, expect) == 0) { 
+        if (lora_wait_for(sm, { "+DR: DR" DATA_RATE}) == 0) { 
             TRAN(st_join); 
         }
         break;
@@ -409,8 +404,6 @@ void LoRaStateMachine::st_dr(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_port(Smi *sm, const Ev *e)
 {
-    const char *expect[] = { "+PORT: ", nullptr };
-
     switch (e->ev) {
     case EvType::Enter: {
         lora_flush(sm);
@@ -427,7 +420,7 @@ void LoRaStateMachine::st_port(Smi *sm, const Ev *e)
         if (++sm->timer > 3) { TRAN(st_init); }
         break;
     case EvType::Receive:
-        if (lora_wait_for(sm, expect) == 0) { 
+        if (lora_wait_for(sm, { "+PORT: "}) == 0) { 
             TRAN(st_send); 
         }
         break;
@@ -438,13 +431,6 @@ void LoRaStateMachine::st_port(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_join(Smi *sm, const Ev *e)
 {
-    const char *expect[] = {
-        "+JOIN: Join failed",
-        "+JOIN: LoRaWAN modem is busy",
-        "+JOIN: Network joined",
-        "+JOIN: Joined already",
-        nullptr
-    };
 
     switch (e->ev) {
     case EvType::Enter:
@@ -459,7 +445,12 @@ void LoRaStateMachine::st_join(Smi *sm, const Ev *e)
         }
         break;
     case EvType::Receive: {
-        int res = lora_wait_for(sm, expect);
+        int res = lora_wait_for(sm, {
+        "+JOIN: Join failed",
+        "+JOIN: LoRaWAN modem is busy",
+        "+JOIN: Network joined",
+        "+JOIN: Joined already",
+    });
         if (res == 2 || res == 3) { 
             TRAN(st_clock_sync); 
         }
@@ -472,8 +463,6 @@ void LoRaStateMachine::st_join(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_clock_sync(Smi *sm, const Ev *e)
 {
-    const char *expect[] = { "+LW: DTR", "+CMSGHEX: Done", "+RTC:", nullptr };
-
     switch (e->ev) {
     case EvType::Enter:
         lora_flush(sm);
@@ -487,7 +476,7 @@ void LoRaStateMachine::st_clock_sync(Smi *sm, const Ev *e)
         }
         break;
     case EvType::Receive: {
-        int res = lora_wait_for(sm, expect);
+        int res = lora_wait_for(sm, { "+LW: DTR", "+CMSGHEX: Done", "+RTC:" });
         if (res == 0) {
             lora_write(sm, "AT+CMSGHEX\r\n");
         } else if (res == 1) {
@@ -530,8 +519,6 @@ void LoRaStateMachine::st_connected(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_get_payload_len(Smi *sm, const Ev *e)
 {
-    const char *expect[] = { "+LW: LEN", nullptr };
-
     switch (e->ev) {
     case EvType::Enter:
         lora_flush(sm);
@@ -542,7 +529,7 @@ void LoRaStateMachine::st_get_payload_len(Smi *sm, const Ev *e)
         if (++sm->timer > 10) { TRAN(st_connected); }
         break;
     case EvType::Receive: {
-        int res = lora_wait_for(sm, expect);
+        int res = lora_wait_for(sm, { "+LW: LEN" });
         if (res == 0) {
             const char *len_str = strstr(sm->buffer, "+LW: LEN,");
             if (len_str) {
@@ -561,12 +548,6 @@ void LoRaStateMachine::st_get_payload_len(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_send(Smi *sm, const Ev *e)
 {
-    const char *expect[] = {
-        "+CMSGHEX: ACK Received",
-        "+CMSGHEX: Done",
-        "+CMSGHEX: Length error",
-        nullptr
-    };
 
     switch (e->ev) {
     case EvType::Enter: {
@@ -611,7 +592,11 @@ void LoRaStateMachine::st_send(Smi *sm, const Ev *e)
         break;
     }
     case EvType::Receive: {
-        int res = lora_wait_for(sm, expect);
+        int res = lora_wait_for(sm, {
+        "+CMSGHEX: ACK Received",
+        "+CMSGHEX: Done",
+        "+CMSGHEX: Length error",
+    });
         if (res == 0) {
             LOG_INF("ACK received");
             last_send_count_ = sm->count;

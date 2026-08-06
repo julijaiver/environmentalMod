@@ -3,12 +3,14 @@
 #include <stdint.h>
 #include <time.h>
 
-#define TYPE_UNKNOWN 0
-#define TYPE_RUUVI_TAG 1
-#define TYPE_TEROS12 2
-#define TYPE_SOLYX14 3
-#define TYPE_SOLINST 4
-
+//enum instead of define
+enum class SensorType : uint8_t {
+    Unknown = 0,
+    RuuviTag = 1,
+    Teros12 = 2,
+    Solyx14 = 3,
+    Solinst = 4
+};
 
 #define DR1_LEN 51   // DR1 max payload
 

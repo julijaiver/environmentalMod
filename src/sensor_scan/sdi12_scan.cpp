@@ -5,11 +5,12 @@ LOG_MODULE_REGISTER(sdi12_scan);
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <array>
 #include "sensor_scan/sdi12_scan.hpp"
 #include "sensor_topics.hpp"
 #include "utils/app_events.hpp"
 
-static constexpr int SDI12_STACKSIZE = 4096; //for cpp maybe need a bigger one?
+static constexpr int SDI12_STACKSIZE = 8192;
 static constexpr int SDI12_THREAD_PRIORITY = 7;
 
 K_THREAD_STACK_DEFINE(sdi12_stack, SDI12_STACKSIZE);
@@ -60,7 +61,11 @@ void SDI12Scanner::run()
     AppEvents::boot_wait();
 
     sensor_info sensors[MAX_SENSORS] = {};
+    bus_.power_on();
+    LOG_INF("SDI12 power on");
     int sensor_count = scan_sensors(sensors, MAX_SENSORS);
+    bus_.power_off();
+    LOG_INF("SDI12 power off");
 
     AppEvents::clock_wait();
 
@@ -68,21 +73,25 @@ void SDI12Scanner::run()
         AppEvents::wait(AppEvents::SDI12_READ, false, K_FOREVER);
         AppEvents::clear(AppEvents::SDI12_READ);
 
+        bus_.power_on();
+        LOG_INF("SDI12 power on");
         for (int i = 0; i < sensor_count; ++i) {
             switch (sensors[i].type) {
-            case TYPE_TEROS12: 
+            case SensorType::Teros12: 
                 read_teros12(sensors[i]); 
                 break;
-            case TYPE_SOLYX14: 
+            case SensorType::Solyx14: 
                 read_solyx14(sensors[i]); 
                 break;
-            case TYPE_SOLINST: 
+            case SensorType::Solinst: 
                 read_solinst(sensors[i]); 
                 break;
             default: 
                 break;
             }
         }
+        bus_.power_off();
+        LOG_INF("SDI12 power off");
     }
 }
 
@@ -90,16 +99,15 @@ int SDI12Scanner::scan_sensors(sensor_info *sensors, int max)
 {
     struct known_sensor {
         const char *id;
-        int type;
+        SensorType type;
         void (*sn_reader)(char *, size_t, const char *);
     };
 
-    static const known_sensor known[] = {
-        { "METER   TER12 ", TYPE_TEROS12, read_teros_solyx_sn},
-        { "METER   SLYX14", TYPE_SOLYX14, read_teros_solyx_sn },
-        { "SOLINST ", TYPE_SOLINST, read_solinst_sn },
-        { nullptr, TYPE_UNKNOWN, nullptr },
-    };
+    static constexpr std::array<known_sensor, 3> known = {{
+        { "METER   TER12 ", SensorType::Teros12, read_teros_solyx_sn},
+        { "METER   SLYX14", SensorType::Solyx14, read_teros_solyx_sn },
+        { "SOLINST ", SensorType::Solinst, read_solinst_sn },
+    }};
 
     int sid = 0;
     for (int i = 0; i <= 9 && sid < max; ++i) {
@@ -111,12 +119,12 @@ int SDI12Scanner::scan_sensors(sensor_info *sensors, int max)
         if (bus_.wait_for(response, sizeof(response), nullptr) >= 25) {
             response[strcspn(response, "\r\n")] = '\0';
 
-            for (const known_sensor *kn = known; kn->id != nullptr; ++kn) {
-                const char *str = strstr(response, kn->id);
+            for (const auto &kn : known) {
+                const char *str = strstr(response, kn.id);
                 if (str) {
                     sensors[sid].addr = cmd[0];
-                    sensors[sid].type = kn->type;
-                    kn->sn_reader(sensors[sid].id, sizeof(sensors[sid].id), str);
+                    sensors[sid].type = kn.type;
+                    kn.sn_reader(sensors[sid].id, sizeof(sensors[sid].id), str);
                     ++sid;
                     break;
                 }

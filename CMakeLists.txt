@@ -8,6 +8,8 @@ file(GLOB_RECURSE SRC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 target_sources(app PRIVATE ${SRC_FILES})
 target_include_directories(app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/includes" ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/proto)
 
+set_property(TARGET app PROPERTY CXX_STANDARD 20)
+
 list(APPEND CMAKE_MODULE_PATH ${ZEPHYR_BASE}/modules/nanopb)             
 include(nanopb)  
 #generates sensors.pb.c/sensors.pb.h

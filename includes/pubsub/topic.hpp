@@ -1,12 +1,13 @@
 #pragma once
 
+#include <array>
 #include <zephyr/kernel.h>
 #include "data_types.hpp"
 
 template<typename T, int MAX_SUBS=5>
 class Topic {
     private:
-        struct k_msgq *subs_[MAX_SUBS]{};
+        std::array<struct k_msgq *, MAX_SUBS> subs_{};
         int count_ = 0;
 
     public:

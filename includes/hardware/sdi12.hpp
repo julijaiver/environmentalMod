@@ -7,6 +7,7 @@
 
 class SDI12Bus : public UART {
     struct gpio_dt_spec break_gpio_;
+    struct gpio_dt_spec pwr_ctrl_gpio_;
 
     static char add_even_parity(char ch);
     static char remove_even_parity(char ch);
@@ -19,4 +20,8 @@ public:
     int cmd(const char *cmd, bool send_break);
     int wait_for(char *buf, int size, const char *expect);
     int flush();
+
+    //for controlling sensor power
+    void power_on();
+    void power_off();
 };

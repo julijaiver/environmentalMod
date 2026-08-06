@@ -2,6 +2,7 @@
 
 #include <zephyr/kernel.h>
 #include "hardware/uart.hpp"
+#include <initializer_list> 
 
 class LoRaStateMachine : public UART {
 public:
@@ -25,7 +26,7 @@ public:
 
     // cloud sender called funcs
     int queue_payload(const uint8_t *buf, int len, int port);
-    int  wait_for_response(uint32_t bits, k_timeout_t timeout);
+    int wait_for_response(uint32_t bits, k_timeout_t timeout);
     int get_max_payload_len();
     int get_last_send_count();
 
@@ -59,7 +60,8 @@ private:
     int lora_flush(Smi *sm);
     int lora_read(Smi *sm);
     int lora_write(Smi *sm, const char *str);
-    int lora_wait_for(Smi *sm, const char **expect);
+    //no ** and nullptr needed
+    int lora_wait_for(Smi *sm, std::initializer_list<const char*> expect);
     int send_hex(Smi *sm, Payload *payload);
     static int set_system_time(const char *str);
 

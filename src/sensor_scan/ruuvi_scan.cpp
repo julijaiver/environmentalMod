@@ -16,7 +16,7 @@ static constexpr uint8_t FLAGS_LENGTH = 2;
 static constexpr uint8_t FLAGS_TYPE = 0x01;
 static constexpr uint8_t MD_TYPE = 0xff;
 
-static constexpr int RUUVI_STACKSIZE = 4096;
+static constexpr int RUUVI_STACKSIZE = 8192;
 static constexpr int RUUVI_THREAD_PRIORITY = 7;
 
 K_THREAD_STACK_DEFINE(ruuvi_stack, RUUVI_STACKSIZE);
@@ -75,10 +75,12 @@ void RuuviScanner::run()
         LOG_INF("Starting bluetooth scan %02X", all_tags);
         k_event_clear(&scan_event_, all_tags);
 
-        bt_le_scan_start(&scan_params, ble_cb);
-        k_event_wait_all(&scan_event_, all_tags, false,
-                         K_MSEC(AppEvents::MEASURE_CYCLE_MINUTES * 30000));
-        bt_le_scan_stop();
+        if (all_tags != 0) {
+            bt_le_scan_start(&scan_params, ble_cb);
+            k_event_wait_all(&scan_event_, all_tags, false,
+            K_MSEC(AppEvents::MEASURE_CYCLE_MINUTES * 30000));
+            bt_le_scan_stop();
+        }
 
         ruuvi_data data;
         while (k_msgq_get(&ruuvi_q_, &data, K_NO_WAIT) == 0) {

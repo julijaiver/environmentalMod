@@ -16,6 +16,7 @@
 		break_pin-gpios = <&gpio1 0 0>;
 		modem_pin-gpios = <&gpio0 13 0>;
 		modem_ctrl-gpios = <&gpio1 10 0>;
+		sdi12-ctrl-gpios = <&gpio0 15 0>;
 	};
 	chosen {
 		zephyr,modem-uart = &uart0;

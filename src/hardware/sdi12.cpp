@@ -4,7 +4,7 @@ LOG_MODULE_REGISTER(sdi12_bus);
 #include <string.h>
 #include "hardware/sdi12.hpp"
 
-#define DEV_SDI12        DEVICE_DT_GET(DT_NODELABEL(uart1))
+#define DEV_SDI12 DEVICE_DT_GET(DT_NODELABEL(uart1))
 #define ZEPHYR_USER_NODE DT_PATH(zephyr_user)
 
 //even-parity lookup table 
@@ -46,7 +46,8 @@ void SDI12Bus::send_break()
 }
 
 SDI12Bus::SDI12Bus()
-    : break_gpio_(GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, break_pin_gpios))
+    : break_gpio_(GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, break_pin_gpios)),
+    pwr_ctrl_gpio_(GPIO_DT_SPEC_GET(ZEPHYR_USER_NODE, sdi12_ctrl_gpios))
 {
 }
 
@@ -62,6 +63,17 @@ int SDI12Bus::init()
     int ret = gpio_pin_configure_dt(&break_gpio_, GPIO_OUTPUT_INACTIVE);
     if (ret < 0) {
         LOG_ERR("Failed to configure break GPIO");
+        return -1;
+    }
+
+    if (!gpio_is_ready_dt(&pwr_ctrl_gpio_)) {
+        LOG_ERR("sdi12 ctrl pin not ready");
+        return -ENODEV;
+    }
+
+    ret = gpio_pin_configure_dt(&pwr_ctrl_gpio_, GPIO_OUTPUT_INACTIVE);
+    if (ret < 0) {
+        LOG_ERR("Failed to configure sdi12 ctrl GPIO");
         return -1;
     }
 
@@ -89,8 +101,9 @@ int SDI12Bus::flush()
 int SDI12Bus::cmd(const char *cmd_str, bool do_break)
 {
     int len = strlen(cmd_str);
-    char buf[len + 1];
-    for (int i = 0; i < len; ++i) {
+    //using a fixed size array instead of var len
+    char buf[32];
+    for (int i = 0; i < len ; ++i) {
         buf[i] = add_even_parity(cmd_str[i]);
     }
     buf[len] = '\0';
@@ -142,4 +155,15 @@ int SDI12Bus::wait_for(char *buffer, int size, const char *expect)
 
     LOG_INF("No response: %s", buffer);
     return 0;
+}
+
+void SDI12Bus::power_on()
+{
+    gpio_pin_set_dt(&pwr_ctrl_gpio_, 1);
+    k_msleep(500);
+}
+
+void SDI12Bus::power_off()
+{
+    gpio_pin_set_dt(&pwr_ctrl_gpio_, 0);
 }
