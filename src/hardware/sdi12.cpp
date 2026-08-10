@@ -166,4 +166,5 @@ void SDI12Bus::power_on()
 void SDI12Bus::power_off()
 {
     gpio_pin_set_dt(&pwr_ctrl_gpio_, 0);
+    k_msleep(500);
 }

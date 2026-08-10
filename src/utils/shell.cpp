@@ -126,6 +126,8 @@ static int cmd_sdi12_scan(const struct shell *sh, size_t argc, char **argv)
 {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
+    sdi12_bus.power_on();
+    //maybe need a mutex so that if read event happens during scan
     for (int i = 0; i <= 9; ++i) {
         char cmd[] = "0I!";
         cmd[0] = '0' + i;
@@ -136,6 +138,7 @@ static int cmd_sdi12_scan(const struct shell *sh, size_t argc, char **argv)
             shell_print(sh, "[%s]", buffer);
         }
     }
+    sdi12_bus.power_off();
     return 0;
 }
 
@@ -143,12 +146,14 @@ static int cmd_sdi12_query(const struct shell *sh, size_t argc, char **argv)
 {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
+    sdi12_bus.power_on();
     sdi12_bus.cmd("?!", true);
     char buffer[32];
     if (sdi12_bus.wait_for(buffer, sizeof(buffer), NULL) > 0) {
         buffer[strcspn(buffer, "\r\n")] = 0;
         shell_print(sh, "[%s]", buffer);
     }
+    sdi12_bus.power_off();
     return 0;
 }
 
@@ -157,6 +162,7 @@ static int cmd_sdi12_addr(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
     if (argc < 3) return -1;
+    sdi12_bus.power_on();
     if (!isdigit((int)argv[1][0])) return -2;
     if (!isdigit((int)argv[2][0])) return -3;
 
@@ -170,18 +176,21 @@ static int cmd_sdi12_addr(const struct shell *sh, size_t argc, char **argv)
         buffer[strcspn(buffer, "\r\n")] = 0;
         shell_print(sh, "[%s]", buffer);
     }
+    sdi12_bus.power_off();
     return 0;
 }
 
 static int cmd_sdi12_send(const struct shell *sh, size_t argc, char **argv)
 {
     if (argc < 2) return -1;
+    sdi12_bus.power_on();
     sdi12_bus.cmd(argv[1], true);
     char buffer[32];
     if (sdi12_bus.wait_for(buffer, sizeof(buffer), NULL) > 0) {
         buffer[strcspn(buffer, "\r\n")] = 0;
         shell_print(sh, "[%s]", buffer);
     }
+    sdi12_bus.power_off();
     return 0;
 }
 
