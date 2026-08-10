@@ -97,16 +97,16 @@ bool UART::read_line(char *out, int size, k_timeout_t timeout)
             return false;
         clear_rcv_evt();
         int n = read(out + pos, size - pos - 1);
-        if (n <= 0)
-            continue;
-        pos += n;
-        out[pos] = '\0';
-        char *nl = static_cast<char *>(memchr(out, '\n', pos));
-        if (nl) {
-            *nl = '\0';
-            if (nl > out && *(nl - 1) == '\r')
-                *(nl - 1) = '\0';
-            return true;
+        if (n > 0) {
+            pos += n;
+            out[pos] = '\0';
+            char *nl = static_cast<char *>(memchr(out, '\n', pos));
+            if (nl) {
+                *nl = '\0';
+                if (nl > out && *(nl - 1) == '\r')
+                    *(nl - 1) = '\0';
+                return true;
+            }
         }
     }
     return false;

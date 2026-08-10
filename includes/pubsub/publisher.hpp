@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pubsub/topic.hpp"
-
+// Publisher class uses Topic's publish() to add its data to the subscriber queues
 template<typename T>
 class Publisher
 {

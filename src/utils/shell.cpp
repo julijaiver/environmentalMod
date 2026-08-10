@@ -264,6 +264,15 @@ static int cmd_lora_set_appkey(const struct shell *sh, size_t argc, char **argv)
     return 0;
 }
 
+static int cmd_lora_set_autoon(const struct shell *sh, size_t argc, char **argv)
+{
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+    lora_sm.raw_write("AT+LOWPOWER=AUTOON\r\n");
+    cmd_lora_read(sh, 0, NULL);
+    return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_lora,
     SHELL_CMD(write, NULL, "Write command to lora (no spaces allowed)", cmd_lora_write),
     SHELL_CMD(read, NULL, "Read pending data.", cmd_lora_read),

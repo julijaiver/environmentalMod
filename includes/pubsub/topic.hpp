@@ -4,6 +4,8 @@
 #include <zephyr/kernel.h>
 #include "data_types.hpp"
 
+// Topic class holds array of subscriber queues, to which data is sent with publish() function
+
 template<typename T, int MAX_SUBS=5>
 class Topic {
     private:

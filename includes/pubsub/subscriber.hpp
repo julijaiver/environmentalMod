@@ -3,6 +3,8 @@
 #include <zephyr/kernel.h>
 #include "pubsub/topic.hpp"
 
+// Subscriber class initializes own queue ansd adds it to array of subs in Topic by subscribing. 
+//Then can get messages from that queue and do other ops
 template<typename T, int NUM_MSG = 16>
 class Subscriber 
 {
