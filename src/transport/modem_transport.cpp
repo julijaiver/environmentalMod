@@ -190,7 +190,7 @@ int ModemTransport::connect()
     k_msleep(STARTUP_DELAY_MS);
 
     int tries = 0;
-    int rc    = modem_init();
+    int rc = modem_init();
     while (rc != 0 && tries < MAX_INIT_TRIES) {
         k_msleep(RETRY_DELAY_MS);
         rc = modem_init();
@@ -278,8 +278,7 @@ int ModemTransport::http_read_access_token(char *out, size_t out_size)
 
     int response_len = 0;
 
-    uart_.write(reinterpret_cast<const uint8_t *>("AT+HTTPREAD?\r\n"),
-                sizeof("AT+HTTPREAD?\r\n") - 1);
+    uart_.write(reinterpret_cast<const uint8_t *>("AT+HTTPREAD?\r\n"),sizeof("AT+HTTPREAD?\r\n") - 1);
     while (uart_.read_line(response, sizeof(response), K_MSEC(BOOT_AT_TIMEOUT_MS))) {
         if (strstr(response, "ERROR")) { k_free(full); return -EIO; }
         if (strstr(response, "+HTTPREAD:")) {

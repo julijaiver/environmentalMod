@@ -10,6 +10,7 @@ LoRaTransport::LoRaTransport(LoRaStateMachine &sm)
 {
 }
 
+//default send just sends a data message
 int LoRaTransport::send(const uint8_t *buf, int len)
 {
     return send_on_port(buf, len, LoRaStateMachine::DATA_MSG_PORT);

@@ -25,7 +25,7 @@ public:
 
     int is_listed(const bt_addr_t *addr) const;
     int get_tag_mask() const;
-
+    //LoRa key setting and getting. It is checked in the beginning if lora key is set
     int get_appkey(char *key) const;
     int set_appkey(const char *key);
 };
