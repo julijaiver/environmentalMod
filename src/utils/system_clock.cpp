@@ -54,6 +54,7 @@ int SystemClock::set(const char *modem_time_str)
     t.tm_min  = mm;
     t.tm_sec  = ss;
 
+    // 
     time_t epoch = mktime(&t);
     if (epoch == (time_t)-1) {
         LOG_ERR("mktime failed for modem time: %s", modem_time_str);

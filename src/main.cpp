@@ -11,7 +11,7 @@
 #include "sensor_scan/ruuvi_scan.hpp"
 #include "sensor_scan/sdi12_scan.hpp"
 #include "hardware/sdi12.hpp"
-#include "sensor_topics.hpp"
+#include "pubsub/topic.hpp"
 #include "transport/lora_statemachine.hpp"
 #include "transport/lora_transport.hpp"
 #include "serialization/binary_serializer.hpp"
@@ -43,26 +43,35 @@ static uint32_t vrefs_mv[] = {DT_FOREACH_CHILD_SEP(ADC_NODE, CHANNEL_VREF, (,))}
 
 static constexpr float BAT_VOLTAGE_DIVIDER_RATIO = 5.6f;
 
-//in total 4 threads running, all started in constructors (lora_sm, both scanners, cloud_sender)
+// for shell access?
 NvStorage nv_storage;
 SDI12Bus sdi12_bus;
 LoRaStateMachine lora_sm;
 
-static RuuviScanner ruuvi_scanner(ruuvi_topic, nv_storage);
-static SDI12Scanner sdi12_scanner(sdi12_bus, ruuvi_scanner, teros_topic, solyx_topic, solinst_topic);
-
-#if CONFIG_CLOUD_SEND_LORA
-static LoRaTransport lora_transport(lora_sm);
-static BinarySerializer binary_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
-CloudSender cloud_sender(lora_transport, binary_ser);
-#elif CONFIG_CLOUD_SEND_4G
-static ModemTransport modem_transport;
-static JsonSerializer json_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
-CloudSender cloud_sender(modem_transport, json_ser);
-#endif
+extern void shell_cloud_sender_set(CloudSender &);
 
 int main(void)
 {
+	Topic<ruuvi_data> ruuvi_topic;
+	Topic<teros12_data> teros_topic;
+	Topic<solyx14_data> solyx_topic;
+	Topic<solinst_data> solinst_topic;
+
+	RuuviScanner ruuvi_scanner(ruuvi_topic, nv_storage);
+	SDI12Scanner sdi12_scanner(sdi12_bus, ruuvi_scanner, teros_topic, solyx_topic, solinst_topic);
+
+#if CONFIG_CLOUD_SEND_LORA
+	LoRaTransport lora_transport(lora_sm);
+	BinarySerializer binary_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
+	CloudSender cloud_sender(lora_transport, binary_ser);
+#elif CONFIG_CLOUD_SEND_4G
+	ModemTransport modem_transport;
+	JsonSerializer json_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
+	CloudSender cloud_sender(modem_transport, json_ser);
+#endif
+	//getting cloud_sender as user data for the shell so that it doesn't need to be a global
+	shell_cloud_sender_set(cloud_sender);
+
 	int rc;
 #ifdef CONFIG_SEQUENCE_32BITS_REGISTERS
 	uint32_t channel_reading[CONFIG_SEQUENCE_SAMPLES][CHANNEL_COUNT];

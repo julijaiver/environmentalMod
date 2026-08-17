@@ -13,11 +13,21 @@ class Topic {
         int count_ = 0;
 
     public:
-        void subscribe(struct k_msgq *q);
-        int publish(const T &msg); //int will return dropped msg count if eg.queue is full
-};
+        void subscribe(struct k_msgq *q)
+        {
+            if (count_ < MAX_SUBS) {
+                subs_[count_++] = q;
+            }
+        }
 
-extern template class Topic<ruuvi_data>;
-extern template class Topic<teros12_data>;
-extern template class Topic<solyx14_data>;
-extern template class Topic<solinst_data>;
+        int publish(const T &msg) //int will return dropped msg count if eg.queue is full
+        {
+            int dropped = 0;
+            for (int i=0; i<count_; ++i) {
+                if (k_msgq_put(subs_[i], &msg, K_NO_WAIT) != 0) {
+                    ++dropped;
+                }
+            }
+            return dropped;
+        }
+};

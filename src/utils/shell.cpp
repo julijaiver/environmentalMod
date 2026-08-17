@@ -18,9 +18,11 @@
 
 //objects defined in main
 extern NvStorage nv_storage;
-extern CloudSender cloud_sender;
 extern SDI12Bus sdi12_bus;
 extern LoRaStateMachine lora_sm;
+
+static CloudSender *g_cloud_sender = nullptr;
+void shell_cloud_sender_set(CloudSender &cs) { g_cloud_sender = &cs; }
 
 static int cmd_nvs_read_tags(const struct shell *sh, size_t argc, char **argv)
 {
@@ -74,10 +76,10 @@ SHELL_CMD_REGISTER(tag, &sub_tags, "BLE tag commands.", NULL);
 
 static int cmd_trigger_transmit(const struct shell *sh, size_t argc, char **argv)
 {
-    ARG_UNUSED(sh);
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    cloud_sender.notify();
+    //here the cloud sender pointer is accessed (it is set in the main)
+    g_cloud_sender->notify();
     return 0;
 }
 SHELL_CMD_REGISTER(transmit, NULL, "Trigger data transmit.", cmd_trigger_transmit);
@@ -273,12 +275,23 @@ static int cmd_lora_set_autoon(const struct shell *sh, size_t argc, char **argv)
     return 0;
 }
 
+//nested subcommands for LoRa 
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_lora_get, 
+    SHELL_CMD(deveui, NULL, "Get DevEUI from E5 module", cmd_lora_get_deveui),
+    SHELL_CMD(appkey, NULL, "Get AppKey from NVS", cmd_lora_get_appkey),
+    SHELL_SUBCMD_SET_END
+);
+
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_lora_set, 
+    SHELL_CMD(appkey, NULL, "Set new AppKey and write to NVS", cmd_lora_set_appkey),
+    SHELL_SUBCMD_SET_END
+);
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_lora,
     SHELL_CMD(write, NULL, "Write command to lora (no spaces allowed)", cmd_lora_write),
     SHELL_CMD(read, NULL, "Read pending data.", cmd_lora_read),
-    SHELL_CMD(get_deveui, NULL, "Get device EUI.", cmd_lora_get_deveui),
-    SHELL_CMD(get_appkey, NULL, "Get AppKey.", cmd_lora_get_appkey),
-    SHELL_CMD(set_appkey, NULL, "Set new AppKey.", cmd_lora_set_appkey),
+    SHELL_CMD(get, &sub_lora_get, "Get LoRa params", NULL),
+    SHELL_CMD(set, &sub_lora_set, "Set LoRa params", NULL),
     SHELL_SUBCMD_SET_END
 );
 SHELL_CMD_REGISTER(lora, &sub_lora, "lora commands: write, read, get_deveui, get_appkey, set_appkey", NULL);

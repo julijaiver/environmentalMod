@@ -5,7 +5,6 @@ LOG_MODULE_REGISTER(ruuvi_scanner);
 #include <string.h>
 #include <time.h>
 #include "sensor_scan/ruuvi_scan.hpp"
-#include "sensor_topics.hpp"
 #include "utils/app_events.hpp"
 
 //ruuvi constants from old ruuvitag.h

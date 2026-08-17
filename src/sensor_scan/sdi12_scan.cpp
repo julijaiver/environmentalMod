@@ -7,7 +7,6 @@ LOG_MODULE_REGISTER(sdi12_scan);
 #include <math.h>
 #include <array>
 #include "sensor_scan/sdi12_scan.hpp"
-#include "sensor_topics.hpp"
 #include "utils/app_events.hpp"
 
 static constexpr int SDI12_STACKSIZE = 8192;
