@@ -7,7 +7,7 @@
 //binary and json serializers derived from this class, 
 //owns subscriber queues that serializers use in pack()
 
-class SensorSerializer : public ISerializer {
+class DataSubscriber : public ISerializer {
 protected:
     Subscriber<ruuvi_data, 16> ruuvi_sub_;
     Subscriber<teros12_data, 16> teros_sub_;
@@ -15,7 +15,7 @@ protected:
     Subscriber<solinst_data, 16> solinst_sub_;
 
 public:
-    SensorSerializer(Topic<ruuvi_data> &ruuvi_topic, 
+    DataSubscriber(Topic<ruuvi_data> &ruuvi_topic, 
         Topic<teros12_data> &teros_topic, 
         Topic<solyx14_data> &solyx_topic,
         Topic<solinst_data> &solinst_topic)

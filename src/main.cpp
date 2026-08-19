@@ -43,15 +43,18 @@ static uint32_t vrefs_mv[] = {DT_FOREACH_CHILD_SEP(ADC_NODE, CHANNEL_VREF, (,))}
 
 static constexpr float BAT_VOLTAGE_DIVIDER_RATIO = 5.6f;
 
-// for shell access?
-NvStorage nv_storage;
-SDI12Bus sdi12_bus;
-LoRaStateMachine lora_sm;
-
+// for shell access, global cause shell is not an object
+extern void shell_nv_set(NvStorage &);
+extern void shell_sdi12_set(SDI12Bus &);
+extern void shell_lora_sm_set(LoRaStateMachine &);
 extern void shell_cloud_sender_set(CloudSender &);
 
 int main(void)
 {
+	NvStorage nv_storage;
+	SDI12Bus sdi12_bus;
+	LoRaStateMachine lora_sm;
+
 	Topic<ruuvi_data> ruuvi_topic;
 	Topic<teros12_data> teros_topic;
 	Topic<solyx14_data> solyx_topic;
@@ -69,7 +72,9 @@ int main(void)
 	JsonSerializer json_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
 	CloudSender cloud_sender(modem_transport, json_ser);
 #endif
-	//getting cloud_sender as user data for the shell so that it doesn't need to be a global
+	shell_nv_set(nv_storage);
+	shell_sdi12_set(sdi12_bus);
+	shell_lora_sm_set(lora_sm);
 	shell_cloud_sender_set(cloud_sender);
 
 	int rc;

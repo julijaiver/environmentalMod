@@ -61,6 +61,8 @@ int SystemClock::set(const char *modem_time_str)
         return -EINVAL;
     }
 
+    epoch -= tz * 900; //UTC time
+
     struct timespec ts = { .tv_sec = epoch, .tv_nsec = 0 };
     if (clock_settime(CLOCK_REALTIME, &ts) != 0) {
         LOG_ERR("clock_settime failed");

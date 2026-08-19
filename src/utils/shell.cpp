@@ -16,12 +16,14 @@
 
 #include "utils/app_events.hpp"
 
-//objects defined in main
-extern NvStorage nv_storage;
-extern SDI12Bus sdi12_bus;
-extern LoRaStateMachine lora_sm;
-
+static NvStorage *nv_storage = nullptr;
+static SDI12Bus *sdi12_bus = nullptr;
+static LoRaStateMachine *lora_sm = nullptr;
 static CloudSender *g_cloud_sender = nullptr;
+
+void shell_nv_set(NvStorage &nv) { nv_storage = &nv; }
+void shell_sdi12_set(SDI12Bus &sdi12) { sdi12_bus = &sdi12; }
+void shell_lora_sm_set(LoRaStateMachine &sm) { lora_sm = &sm; }
 void shell_cloud_sender_set(CloudSender &cs) { g_cloud_sender = &cs; }
 
 static int cmd_nvs_read_tags(const struct shell *sh, size_t argc, char **argv)
@@ -29,14 +31,14 @@ static int cmd_nvs_read_tags(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(sh);
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    return nv_storage.read_tags();
+    return nv_storage->read_tags();
 }
 
 static int cmd_nvs_tag_add(const struct shell *sh, size_t argc, char **argv)
 {
     ARG_UNUSED(sh);
     if (argc < 2) return -1;
-    return nv_storage.add_tag(argv[1]);
+    return nv_storage->add_tag(argv[1]);
 }
 
 static int cmd_nvs_print_tags(const struct shell *sh, size_t argc, char **argv)
@@ -44,7 +46,7 @@ static int cmd_nvs_print_tags(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(sh);
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    return nv_storage.print_tags();
+    return nv_storage->print_tags();
 }
 
 static int cmd_nvs_clear_tags(const struct shell *sh, size_t argc, char **argv)
@@ -52,7 +54,7 @@ static int cmd_nvs_clear_tags(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(sh);
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    return nv_storage.clear_tags();
+    return nv_storage->clear_tags();
 }
 
 static int cmd_nvs_write_tags(const struct shell *sh, size_t argc, char **argv)
@@ -60,7 +62,7 @@ static int cmd_nvs_write_tags(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(sh);
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    return nv_storage.write_tags();
+    return nv_storage->write_tags();
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_tags,
@@ -78,7 +80,6 @@ static int cmd_trigger_transmit(const struct shell *sh, size_t argc, char **argv
 {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    //here the cloud sender pointer is accessed (it is set in the main)
     g_cloud_sender->notify();
     return 0;
 }
@@ -128,19 +129,19 @@ static int cmd_sdi12_scan(const struct shell *sh, size_t argc, char **argv)
 {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    sdi12_bus.power_on();
+    sdi12_bus->power_on();
     //maybe need a mutex so that if read event happens during scan
     for (int i = 0; i <= 9; ++i) {
         char cmd[] = "0I!";
         cmd[0] = '0' + i;
-        sdi12_bus.cmd(cmd, true);
+        sdi12_bus->cmd(cmd, true);
         char buffer[64];
-        if (sdi12_bus.wait_for(buffer, sizeof(buffer), NULL) > 3) {
+        if (sdi12_bus->wait_for(buffer, sizeof(buffer), NULL) > 3) {
             buffer[strcspn(buffer, "\r\n")] = 0;
             shell_print(sh, "[%s]", buffer);
         }
     }
-    sdi12_bus.power_off();
+    sdi12_bus->power_off();
     return 0;
 }
 
@@ -148,14 +149,14 @@ static int cmd_sdi12_query(const struct shell *sh, size_t argc, char **argv)
 {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    sdi12_bus.power_on();
-    sdi12_bus.cmd("?!", true);
+    sdi12_bus->power_on();
+    sdi12_bus->cmd("?!", true);
     char buffer[32];
-    if (sdi12_bus.wait_for(buffer, sizeof(buffer), NULL) > 0) {
+    if (sdi12_bus->wait_for(buffer, sizeof(buffer), NULL) > 0) {
         buffer[strcspn(buffer, "\r\n")] = 0;
         shell_print(sh, "[%s]", buffer);
     }
-    sdi12_bus.power_off();
+    sdi12_bus->power_off();
     return 0;
 }
 
@@ -164,7 +165,7 @@ static int cmd_sdi12_addr(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
     if (argc < 3) return -1;
-    sdi12_bus.power_on();
+    sdi12_bus->power_on();
     if (!isdigit((int)argv[1][0])) return -2;
     if (!isdigit((int)argv[2][0])) return -3;
 
@@ -172,27 +173,27 @@ static int cmd_sdi12_addr(const struct shell *sh, size_t argc, char **argv)
     cmd[0] = argv[1][0];
     cmd[2] = argv[2][0];
 
-    sdi12_bus.cmd(cmd, true);
+    sdi12_bus->cmd(cmd, true);
     char buffer[32];
-    if (sdi12_bus.wait_for(buffer, sizeof(buffer), NULL) > 0) {
+    if (sdi12_bus->wait_for(buffer, sizeof(buffer), NULL) > 0) {
         buffer[strcspn(buffer, "\r\n")] = 0;
         shell_print(sh, "[%s]", buffer);
     }
-    sdi12_bus.power_off();
+    sdi12_bus->power_off();
     return 0;
 }
 
 static int cmd_sdi12_send(const struct shell *sh, size_t argc, char **argv)
 {
     if (argc < 2) return -1;
-    sdi12_bus.power_on();
-    sdi12_bus.cmd(argv[1], true);
+    sdi12_bus->power_on();
+    sdi12_bus->cmd(argv[1], true);
     char buffer[32];
-    if (sdi12_bus.wait_for(buffer, sizeof(buffer), NULL) > 0) {
+    if (sdi12_bus->wait_for(buffer, sizeof(buffer), NULL) > 0) {
         buffer[strcspn(buffer, "\r\n")] = 0;
         shell_print(sh, "[%s]", buffer);
     }
-    sdi12_bus.power_off();
+    sdi12_bus->power_off();
     return 0;
 }
 
@@ -211,7 +212,7 @@ static int cmd_lora_read(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
     char buffer[256] = {0};
-    lora_sm.raw_read(buffer, sizeof(buffer));
+    lora_sm->raw_read(buffer, sizeof(buffer));
     shell_print(sh, "%s", buffer);
     return 0;
 }
@@ -221,8 +222,8 @@ static int cmd_lora_write(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
     if (argc < 2) return -1;
-    lora_sm.raw_write(argv[1]);
-    lora_sm.raw_write("\r\n");
+    lora_sm->raw_write(argv[1]);
+    lora_sm->raw_write("\r\n");
     cmd_lora_read(sh, argc, argv);
     return 0;
 }
@@ -231,7 +232,7 @@ static int cmd_lora_get_deveui(const struct shell *sh, size_t argc, char **argv)
 {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    lora_sm.raw_write("AT+ID=DevEui\r\n");
+    lora_sm->raw_write("AT+ID=DevEui\r\n");
     cmd_lora_read(sh, 0, NULL);
     return 0;
 }
@@ -241,7 +242,7 @@ static int cmd_lora_get_appkey(const struct shell *sh, size_t argc, char **argv)
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
     char stored_key[33];
-    if (nv_storage.get_appkey(stored_key) <= 0) {
+    if (nv_storage->get_appkey(stored_key) <= 0) {
         shell_print(sh, "WRN: No AppKey stored in NVS.");
         return 0;
     }
@@ -257,11 +258,11 @@ static int cmd_lora_set_appkey(const struct shell *sh, size_t argc, char **argv)
     strncpy(key, argv[1], sizeof(key) - 1);
     key[sizeof(key) - 1] = '\0';
 
-    nv_storage.set_appkey(key);
+    nv_storage->set_appkey(key);
 
-    lora_sm.raw_write("AT+KEY=APPKEY,\"");
-    lora_sm.raw_write(argv[1]);
-    lora_sm.raw_write("\"\r\n");
+    lora_sm->raw_write("AT+KEY=APPKEY,\"");
+    lora_sm->raw_write(argv[1]);
+    lora_sm->raw_write("\"\r\n");
     cmd_lora_read(sh, argc, argv);
     return 0;
 }
@@ -270,7 +271,7 @@ static int cmd_lora_set_autoon(const struct shell *sh, size_t argc, char **argv)
 {
     ARG_UNUSED(argc);
     ARG_UNUSED(argv);
-    lora_sm.raw_write("AT+LOWPOWER=AUTOON\r\n");
+    lora_sm->raw_write("AT+LOWPOWER=AUTOON\r\n");
     cmd_lora_read(sh, 0, NULL);
     return 0;
 }

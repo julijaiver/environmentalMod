@@ -95,9 +95,7 @@ void CloudSender::run()
         k_event_wait(&wakeup_event_, WAKEUP_BIT, true, K_FOREVER);
         LOG_INF("wakeup, pending: %d", serializer_.pending());
 
-        int fail_count = 0;
-
-        while (fail_count < SEND_RETRY_COUNT && serializer_.pending() > 0)
+        while (serializer_.pending() > 0)
         {
             int max_len = transport_.max_payload();
             if (max_len <= 0) {
@@ -105,32 +103,36 @@ void CloudSender::run()
                 break;
             }
 
-            int rc = transport_.connect();
+            int len = serializer_.pack(pb_buf, max_len);
+            if (len <= 0) {
+                LOG_INF("Nothing packed (len=%d)", len);
+                break;
+            }
 
-            if (rc == 0) {
-                int len = serializer_.pack(pb_buf, max_len);
-                if (len <= 0) {
-                    LOG_INF("Nothing packed (len=%d)", len);
+            bool sent = false;
+            for (int attempt = 0; attempt < SEND_RETRY_COUNT && !sent; ++attempt) {
+                int rc = transport_.connect();
+                if (rc == 0) {
+                    int result = transport_.send(pb_buf, len);
                     transport_.disconnect();
-                    break;
-                }
 
-                int result = transport_.send(pb_buf, len);
-                transport_.disconnect();
-
-                if (result == 0) {
-                    total_payload_len_ += (uint32_t)len;
-                    ++total_send_count_;
-                    ++day_msg_count_;
-                    fail_count = 0;
-                    LOG_INF("Send OK: %d bytes", len);
+                    if (result == 0) {
+                        total_payload_len_ += (uint32_t)len;
+                        ++total_send_count_;
+                        ++day_msg_count_;
+                        LOG_INF("Send OK: %d bytes", len);
+                        sent = true;
+                    } else {
+                        LOG_ERR("Send failed (%d), attempt %d", result, attempt + 1);
+                    }
                 } else {
-                    ++fail_count;
-                    LOG_ERR("Send failed (%d), attempt %d", result, fail_count);
+                    LOG_ERR("connect failed (%d), attempt %d", rc, attempt + 1);
                 }
-            } else {
-                LOG_ERR("connect failed: %d", rc);
-                ++fail_count;
+            }
+
+            if (!sent) {
+                LOG_ERR("Giving up after %d attempts", SEND_RETRY_COUNT);
+                break;
             }
         }
 
