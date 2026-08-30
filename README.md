@@ -141,8 +141,7 @@ Connect via USB serial (115200 baud) to access the runtime shell:
 | Command               | Description                                       |
 |-----------------------|---------------------------------------------------|
 | `tag add <MAC>`       | Add a RuuviTag MAC address                        |
-| `tag write`           | Save tag list to NVS flash (needs to be called    |
-                        |    after 'tag add')                               |
+| `tag write`           | Save tag list to NVS flash (needs to be called after 'tag add')   |
 | `tag list`            | List stored RuuviTag MACs                         |
 | `tag clear`           | Clear all stored tags                             |
 | `transmit`            | Trigger immediate cloud send                      |
