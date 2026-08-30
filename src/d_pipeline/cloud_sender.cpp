@@ -86,6 +86,10 @@ void CloudSender::send_log_stats()
 void CloudSender::run()
 {
     AppEvents::boot_wait();
+    AppEvents::clock_wait();
+
+    //initializing first day as boot-up day so the log msg wouldn't be sent on boot
+    last_day_ = (int)(time(nullptr) / 86400);
 
     k_timer_start(&wakeup_timer_, K_MINUTES(WAKEUP_PERIOD_M), K_MINUTES(WAKEUP_PERIOD_M));
 
@@ -142,6 +146,7 @@ void CloudSender::run()
             gmtime_r(&t, &now);
             int today = (int)(t / 86400);
             if (now.tm_hour >= 00 && today != last_day_) {
+                LOG_INF("Sending a log message");
                 send_log_stats();
                 last_day_ = today;
             }

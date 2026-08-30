@@ -1,100 +1,151 @@
 # Energy-Efficient IoT module with nRF52840
 
-**BLE/RUUVITAG VERSION**
+**LoRa / SDI-12 + BLE version (C++)**
 
-This is a cloud-connected, low-power embedded system designed to collect environmental data from **RuuviTags (via BLE)**. It transmits the data securely over a **4G CAT-1 LTE module (A7670G)** to **Google Cloud Pub/Sub**.
-
-## Current data location
-
-The firmware that devices have send the data daily to Metropolias Google Cloud, to the project **prj-mtp-jaak-leht-ufl** and Pub/Sub topic **ymparistomoduuli**. The messages can be looked at Google Cloud console on subscription **ymparistomoduuli-sub** or by fetching them using the python script provided to project leader Jaakko and assistant Martti.
-
-## Features
-
-- **BLE scanner for RuuviTags** (temperature, humidity, pressure)
-- **4G connectivity** using A7670G module with AT+HTTP commands
-- **Data publishing to Google Cloud Pub/Sub** over HTTPS (via AT commands)
-- **Energy-optimized design** for remote, battery-powered deployments
-- Runs on **Zephyr RTOS** for stability and real-time control
-
-## Hardware
-
-| Component        | Description                                    |
-|------------------|-------------------------------------------------|
-| nRF52840 Dongle  | BLE-capable MCU with USB                        |
-| A7670G Module    | 4G LTE CAT-1 modem, AT-command interface        |
-| RuuviTags        | BLE beacons for environmental sensing           |
-| Power Source     | 2x 1850 3500mAh Lithium-Ion batteries           |
-
-## Architecture
-
-```text
-┌────────────┐
-│  RuuviTags │ ◀── BLE Scan ──┐
-└────────────┘                 │
-                               ▼
-                         ┌────────────┐        ┌────────────────────┐
-                         │  nRF52840  │ ────▶ │    A7670G Modem    │
-                         │  (Zephyr)  │        └────────┬───────────┘
-                         └────────────┘                 ▼
-                                               Google Cloud Pub/Sub
-```
-
-## Dependencies
-
-Nordic Semiconductor
-- nRF Connect SDK v2.9.0
-- nRF Connect SDK Toolchain V2.9.0
-
-## Build in Visual Studio Code
-
-To build this project in VScode you need nRF Connect extension. After installing the extension it will ask to install toolchain and SDK, both versions need to be min 2.9.0.
-
-Steps to build:
-1. Install nRF Connect extension in VScode
-2. install trough extension nRF toolchain and SDK, both min 2.9.0
-3. Click open existing application and open the folder you cloned from git
-4. From extension window select the application and click "Add build configuration"
-5. In build configuration select
-    - Board target: nrf52840dongle/nrf52840
-    - Base configuration files: prj.conf & prj_extended.conf
-6. Then click "Generate and Build"
-
-## Flashing via nRF Connect for Desktop
-
-If you are not using J-Link debugger to flash then you flash the firmware using the **nRF Connect for Desktop** tool.
-
-### Requirements
-
-- **nRF Connect for Desktop**: [Download here](https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-desktop)
-- **Programmer App**: Install this inside nRF Connect for Desktop
-- **nRF52840 Dongle**
-- Compiled `.hex` file
-
-### Steps
-
-1. **Plug in the Dongle**
-   - Insert your nRF52840 Dongle into a USB port.
-   - Press the **reset button** while inserting the dongle to enter **DFU (bootloader) mode**.
-   - The RGB LED should start **pulsing red** to indicate DFU mode.
-
-2. **Open Programmer App**
-   - Launch **nRF Connect for Desktop**
-   - Open the **Programmer** application.
-
-3. **Select Device**
-   - In the left sidebar, you should see the dongle listed (e.g., `nRF52840 USB DFU`).
-   - Select it.
-
-4. **Load Firmware**
-   - Click **“Add HEX file”** or **“Browse”** to locate and select your compiled firmware file:
-   - Use the `merged.hex` file from the `build/` directory.
-
-5. **Write to Device**
-   - Click **“Write”** to flash the firmware.
-   - Wait for the progress bar to complete. You’ll see “Successfully written” in the log.
-
-6. **Reset**
-   - After flashing, the device will automatically reboot and run your firmware.
+Embedded firmware for an **Environmental monitoring system**. 
+An IoT device for measuring **Soil and water parameters**: volumetric water content, electrical conductivity, water level, and sending the measurements to the cloud for further processing of the data. 
 
 ---
 
+## Overview
+
+- MCU: **nRF52840 Dongle** running **Zephyr RTOS** (tested with nRF Connect SDK 3.2.1)
+- Sensors: **RuuviTags** (BLE, temperature/humidity/pressure) + **SDI-12 sensors**: Teros12, Solyx14, Solinst (Measuring soil/water parameters)
+- Connectivity: **LoRa** (current target) — A7670G 4G LTE modem (alternative path)
+- Data encoding: **Nano Protobuf** for binary data encoding/decoding and **JSON** for 4G modem path
+- Cloud: **Google Cloud Pub/Sub** via Digita LoRaWAN network (alternatively JWT for 4G modem)
+
+---
+
+## Hardware
+
+| Component         | Description                                      |
+|-------------------|--------------------------------------------------|
+| nRF52840 Dongle   | BLE-capable MCU with USB                         |
+| LoRa E5 module    | LoRa E5 module, communication via UART "AT"      |
+| RuuviTags         | BLE beacons — temperature, humidity, pressure    |
+| Solyx 14          | SDI-12 soil sensor — VWC, temperature, EC        |
+| Solinst           | SDI-12 water sensor - temperature, level         |
+| Power Source      | 12V battery                                      |
+
+### Wiring — SDI-12
+
+| nRF52840 pin  | Signal        |
+|---------------|---------------|
+| P0.09         | SDI12 TX      |
+| P0.10         | SDI12 RX      |
+| P1.00         | Break (GPIO)  | 
+
+### Wiring — LoRa module
+
+| nRF52840 pin  | Signal  | LoRa module pin |
+|---------------|---------|-----------------|
+| 0.20          | UART TX | LoRa RX         |
+| 0.24          | UART RX | LoRa Tx         |
+
+---
+
+## Architecture
+
+```
+RuuviTag (BLE)    --> ruuvi_scanner   --> transmit queue
+Solyx14, Solinst (SDI-12) --> sdi12_scanner   --> transmit queue
+
+transmit queue --> CloudSender --> [LoRaTransport | ModemTransport]
+                                                  |
+                                        Google Cloud Pub/Sub
+```
+
+### Key classes
+
+| Class / File              | Responsibility                                      |
+|---------------------------|-----------------------------------------------------|
+| `LoRaTransport`           | LoRaWAN state machine, join, clock sync, send       |
+| `ModemTransport`          | 4G path                                             |
+| `CloudSender`             | Wakes periodically, batches queue items, calls transport |
+| `BinarySerializer`        | Encodes sensor_data structs for LoRa payload (nanopb) |
+| `JsonSerializer`          | JSON encoding for 4G / Pub/Sub path                 |
+| `RuuviScanner`            | BLE passive scan thread                             |
+| `Sdi12Scanner`            | SDI-12 poll thread                                  |
+| `Sdi12Bus`                | SDI-12 physical layer (UART + break signal)         |
+| `JwtBuilder`              | RS256 JWT via mbedTLS (4G OAuth2)                   |
+| `NvStorage`               | NVS flash — RuuviTag MACs, LoRa AppKey              |
+
+---
+
+## Source Layout
+
+```
+src/
+  main.cpp
+  sensors/
+    ruuvi_scanner.cpp
+    sdi12_scanner.cpp
+  hardware/
+    sdi12_bus.cpp
+  transport/
+    jwt_builder.cpp
+    lora_statemachine.cpp
+    lora_transport.cpp
+    modem_transport.cpp
+  d_pipeline/
+    cloud_sender.cpp
+  serialization/
+    binary_serializer.cpp
+    json_serializer.cpp
+  storage/
+    nv_storage.cpp
+  utils/
+    shell.cpp
+    system_clock.cpp
+
+```
+
+---
+
+## Configuration
+
+Key Kconfig flags in `prj.conf`:
+
+| Flag                    | Effect                                    |
+|-------------------------|-------------------------------------------|
+| `CONFIG_CLOUD_SEND_LORA=y`| Active transport: LoRaWAN (default)     |
+| `CONFIG_CLOUD_SEND_4G=y`  | Inactive transport: 4G modem path       |
+| `CONFIG_SDI12=y`          | Enable SDI-12 thread                    |
+
+---
+
+## Dependencies
+
+- nRF Connect SDK v3.2.1
+- nRF Connect SDK Toolchain v3.2.1
+
+---
+
+## Build in Visual Studio Code
+
+1. Install the **nRF Connect** extension in VS Code.
+2. Through the extension, install the nRF toolchain and SDK (both v3.2.1+).
+3. Click **"Open Existing Application"** and open the cloned folder.
+4. Select the application and click **"Add Build Configuration"**:
+   - Board target: `nrf52840dongle/nrf52840`
+   - Base configuration files: `prj.conf` & `prj_extended.conf`
+5. Click **"Generate and Build"**.
+
+---
+
+## Shell Commands
+
+Connect via USB serial (115200 baud) to access the runtime shell:
+
+| Command               | Description                                       |
+|-----------------------|---------------------------------------------------|
+| `tag add <MAC>`       | Add a RuuviTag MAC address                        |
+| `tag write`           | Save tag list to NVS flash (needs to be called    |
+                        |    after 'tag add')                               |
+| `tag list`            | List stored RuuviTag MACs                         |
+| `tag clear`           | Clear all stored tags                             |
+| `transmit`            | Trigger immediate cloud send                      |
+| `sample`              | Trigger immediate sensor measurement              |
+
+---

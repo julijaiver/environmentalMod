@@ -14,8 +14,8 @@ public:
     static constexpr uint32_t LORA_SEND_ERROR_BIT = BIT(2);
 
     // ports for data and for log messages
-    static constexpr int DATA_MSG_PORT = 1;
-    static constexpr int LOG_MSG_PORT = 2;
+    static constexpr int DATA_MSG_PORT = 2;
+    static constexpr int LOG_MSG_PORT = 3;
 
     // public because sizeof() is used
     enum class EvType : int { Enter, Exit, Tick, Receive, Command, PayloadReady };

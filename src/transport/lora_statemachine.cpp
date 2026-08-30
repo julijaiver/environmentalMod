@@ -410,6 +410,7 @@ void LoRaStateMachine::st_port(Smi *sm, const Ev *e)
         sm_clear(sm);
         Payload payload;
         if (k_msgq_peek(&payload_queue_, &payload) == 0) {
+            LOG_INF("Sending on port: %d", payload.port);
             char cmd[16];
             snprintf(cmd, sizeof(cmd), "AT+PORT=%d\r\n", payload.port);
             lora_write(sm, cmd);
@@ -501,11 +502,16 @@ void LoRaStateMachine::st_clock_sync(Smi *sm, const Ev *e)
 void LoRaStateMachine::st_connected(Smi *sm, const Ev *e)
 {
     switch (e->ev) {
-    case EvType::Enter:
+    case EvType::Enter: {
         lora_flush(sm);
         sm_clear(sm);
         LOG_INF("LoRa connected");
+        Payload p;
+        if (k_msgq_peek(&payload_queue_, &p) == 0) {
+            k_msgq_put(&event_queue_, &evPayloadReady, K_NO_WAIT);
+        }
         break;
+    }
     case EvType::Command:
         TRAN(st_get_payload_len);
         break;
@@ -548,7 +554,6 @@ void LoRaStateMachine::st_get_payload_len(Smi *sm, const Ev *e)
 
 void LoRaStateMachine::st_send(Smi *sm, const Ev *e)
 {
-
     switch (e->ev) {
     case EvType::Enter: {
         lora_flush(sm);
@@ -596,6 +601,7 @@ void LoRaStateMachine::st_send(Smi *sm, const Ev *e)
         "+CMSGHEX: ACK Received",
         "+CMSGHEX: Done",
         "+CMSGHEX: Length error",
+        "+CMSGHEX: Please join network first",
     });
         if (res == 0) {
             LOG_INF("ACK received");
@@ -610,6 +616,10 @@ void LoRaStateMachine::st_send(Smi *sm, const Ev *e)
             k_msgq_get(&payload_queue_, &p, K_NO_WAIT);
             k_event_post(&lora_response_event, LORA_SEND_ERROR_BIT);
             TRAN(st_connected);
+        } else if (res == 3) {
+            LOG_ERR("Network disconnected");
+            k_event_post(&lora_response_event, LORA_SEND_ERROR_BIT);
+            TRAN(st_join);
         }
         break;
     }
