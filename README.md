@@ -122,18 +122,6 @@ Key Kconfig flags in `prj.conf`:
 
 ---
 
-## Build in Visual Studio Code
-
-1. Install the **nRF Connect** extension in VS Code.
-2. Through the extension, install the nRF toolchain and SDK (both v3.2.1+).
-3. Click **"Open Existing Application"** and open the cloned folder.
-4. Select the application and click **"Add Build Configuration"**:
-   - Board target: `nrf52840dongle/nrf52840`
-   - Base configuration files: `prj.conf` & `prj_extended.conf`
-5. Click **"Generate and Build"**.
-
----
-
 ## Shell Commands
 
 Connect via USB serial (115200 baud) to access the runtime shell:
@@ -148,3 +136,37 @@ Connect via USB serial (115200 baud) to access the runtime shell:
 | `sample`              | Trigger immediate sensor measurement              |
 
 ---
+
+## Flash via nRF Connect for Desktop
+
+If you are not using a J-Link debugger, flash the firmware using the nRF Connect for Desktop tool.
+
+**Requirements:**
+- [nRF Connect for Desktop](https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-Desktop)
+- Programmer app (install inside nRF Connect for Desktop)
+- nRF52840 Dongle
+- Compiled `.hex` file
+
+**Steps:**
+
+1. **Enter DFU mode** — insert the dongle into USB while holding the reset button. The RGB LED should pulse red.
+2. **Open Programmer** — launch nRF Connect for Desktop and open the Programmer application.
+3. **Select device** — choose the dongle from the left sidebar (e.g. `nRF52840 USB DFU`).
+4. **Load firmware** — click **"Add HEX file"** and select `build/merged.hex`.
+5. **Write** — click **"Write"** and wait for "Successfully written" in the log.
+6. The device will reboot automatically and run the new firmware.
+
+---
+
+## Build in Visual Studio Code
+
+1. Install the **nRF Connect** extension in VS Code.
+2. Through the extension, install the nRF toolchain and SDK (both v3.2.1+).
+3. Click **"Open Existing Application"** and open the cloned folder.
+4. Select the application and click **"Add Build Configuration"**:
+   - Board target: `nrf52840dongle/nrf52840`
+   - Base configuration files: `prj.conf` & `prj_extended.conf`
+5. Click **"Generate and Build"**.
+
+---
+
