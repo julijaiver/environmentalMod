@@ -88,6 +88,8 @@ bool ModemTransport::at_len(const char *cmd, size_t len, const char *expect, k_t
 
 int ModemTransport::modem_init()
 {
+    at("ATE0", "OK", K_MSEC(BOOT_AT_TIMEOUT_MS));
+    
     if (!at("AT", "OK", K_MSEC(BOOT_AT_TIMEOUT_MS)))
         return -EIO;
 
@@ -218,6 +220,8 @@ int ModemTransport::disconnect()
         access_token_ = nullptr;
     }
     power_off();
+
+    return 0;
 }
 
 int ModemTransport::max_payload()
@@ -281,8 +285,8 @@ int ModemTransport::http_read_access_token(char *out, size_t out_size)
     uart_.write(reinterpret_cast<const uint8_t *>("AT+HTTPREAD?\r\n"),sizeof("AT+HTTPREAD?\r\n") - 1);
     while (uart_.read_line(response, sizeof(response), K_MSEC(BOOT_AT_TIMEOUT_MS))) {
         if (strstr(response, "ERROR")) { k_free(full); return -EIO; }
-        if (strstr(response, "+HTTPREAD:")) {
-            sscanf(response, "+HTTPREAD: LEN,%d", &response_len);
+        if (char *pos = strstr(response, "+HTTPREAD:"); pos != nullptr) {
+            sscanf(pos, "+HTTPREAD: LEN,%d", &response_len);
         }
     }
 
