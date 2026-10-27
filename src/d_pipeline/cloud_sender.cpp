@@ -93,22 +93,23 @@ void CloudSender::run()
 
     k_timer_start(&wakeup_timer_, K_MINUTES(WAKEUP_PERIOD_M), K_MINUTES(WAKEUP_PERIOD_M));
 
-    static uint8_t pb_buf[PB_BUF_MAX];
-
     while (true) {
         k_event_wait(&wakeup_event_, WAKEUP_BIT, true, K_FOREVER);
         LOG_INF("wakeup, pending: %d", serializer_.pending());
 
         while (serializer_.pending() > 0)
         {
-            int max_len = transport_.max_payload();
+            int max_len = transport_.max_payload();  // not static!!!
             if (max_len <= 0) {
                 LOG_WRN("Transport not ready, skipping send");
                 break;
             }
+            uint8_t *pb_buf = (uint8_t *)k_malloc(max_len);
+            if(pb_buf == NULL) break;
 
-            int len = serializer_.pack(pb_buf, max_len);
+            int len = serializer_.pack(pb_buf, max_len);  // causes stack overflow???
             if (len <= 0) {
+                k_free(pb_buf);
                 LOG_INF("Nothing packed (len=%d)", len);
                 break;
             }
@@ -133,6 +134,7 @@ void CloudSender::run()
                     LOG_ERR("connect failed (%d), attempt %d", rc, attempt + 1);
                 }
             }
+            k_free(pb_buf);
 
             if (!sent) {
                 LOG_ERR("Giving up after %d attempts", SEND_RETRY_COUNT);
