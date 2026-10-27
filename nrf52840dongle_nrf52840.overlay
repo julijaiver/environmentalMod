@@ -40,7 +40,8 @@
 	pinctrl-0 = <&uart0_default>;
 	pinctrl-1 = <&uart0_sleep>;
 	pinctrl-names = "default", "sleep";
-	current-speed = <9600>;
+	//current-speed = <9600>; // for LoRa modem
+	current-speed = <115200>; // for 4G modem
 };
 
 

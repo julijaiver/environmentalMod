@@ -12,16 +12,20 @@
 #include "sensor_scan/sdi12_scan.hpp"
 #include "hardware/sdi12.hpp"
 #include "pubsub/topic.hpp"
-#include "transport/lora_statemachine.hpp"
-#include "transport/lora_transport.hpp"
-#include "serialization/binary_serializer.hpp"
+
 #include "d_pipeline/cloud_sender.hpp"
 #include "storage/nv_storage.hpp"
 #include "utils/system_clock.hpp"
 
 #if CONFIG_CLOUD_SEND_4G
-#include "modem_transport.hpp"
-#include "json_serializer.hpp"
+#include "transport/modem_transport.hpp"
+#include "serialization/json_serializer.hpp"
+#endif
+
+#if CONFIG_CLOUD_SEND_LORA
+#include "transport/lora_statemachine.hpp"
+#include "transport/lora_transport.hpp"
+#include "serialization/binary_serializer.hpp"
 #endif
 
 #include "utils/app_events.hpp"
@@ -43,17 +47,22 @@ static uint32_t vrefs_mv[] = {DT_FOREACH_CHILD_SEP(ADC_NODE, CHANNEL_VREF, (,))}
 
 static constexpr float BAT_VOLTAGE_DIVIDER_RATIO = 5.6f;
 
+
 // for shell access, global cause shell is not an object
 extern void shell_nv_set(NvStorage &);
 extern void shell_sdi12_set(SDI12Bus &);
-extern void shell_lora_sm_set(LoRaStateMachine &);
 extern void shell_cloud_sender_set(CloudSender &);
+
+#if CONFIG_CLOUD_SEND_LORA
+extern void shell_lora_sm_set(LoRaStateMachine &);
+#endif
 
 int main(void)
 {
 	NvStorage nv_storage;
 	SDI12Bus sdi12_bus;
-	LoRaStateMachine lora_sm;
+	
+
 
 	Topic<ruuvi_data> ruuvi_topic;
 	Topic<teros12_data> teros_topic;
@@ -64,9 +73,11 @@ int main(void)
 	SDI12Scanner sdi12_scanner(sdi12_bus, ruuvi_scanner, teros_topic, solyx_topic, solinst_topic);
 
 #if CONFIG_CLOUD_SEND_LORA
+	LoRaStateMachine lora_sm;
 	LoRaTransport lora_transport(lora_sm);
 	BinarySerializer binary_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
 	CloudSender cloud_sender(lora_transport, binary_ser);
+	shell_lora_sm_set(lora_sm);	
 #elif CONFIG_CLOUD_SEND_4G
 	ModemTransport modem_transport;
 	JsonSerializer json_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
@@ -74,7 +85,6 @@ int main(void)
 #endif
 	shell_nv_set(nv_storage);
 	shell_sdi12_set(sdi12_bus);
-	shell_lora_sm_set(lora_sm);
 	shell_cloud_sender_set(cloud_sender);
 
 	int rc;
@@ -103,15 +113,17 @@ int main(void)
 			boot_rc = modem_transport.boot_setup();
 		}
 	}
-	json_ser.init(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
+	//json_ser.init(ruuvi_topic, teros_topic, solyx_topic, solinst_topic); // to be removed??
 #endif
 
 #if 1
 	printk("Type \"stop\" to stop boot\n");
 
-	if(AppEvents::wait(AppEvents::BOOT_HALT | AppEvents::BOOT_CONTINUE, true, K_SECONDS(30)) == AppEvents::BOOT_HALT) {
+	// note: setting clear to true clears all events
+	if(AppEvents::wait(AppEvents::BOOT_HALT | AppEvents::BOOT_CONTINUE, false, K_SECONDS(30)) == AppEvents::BOOT_HALT) {
 		AppEvents::boot_wait();
 	}
+	printk("Continuing boot\n");
 
 #endif
 	AppEvents::boot_continue();
