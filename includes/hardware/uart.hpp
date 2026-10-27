@@ -23,8 +23,8 @@ class UART {
         void clear_rcv_evt();
 
     private:
-        static constexpr int RX_SIZE = 700;
-        static constexpr int TX_SIZE = 550;
+        static constexpr int RX_SIZE = 1024;
+        static constexpr int TX_SIZE = 4096;
 
         static constexpr uint32_t UART_RECEIVE_EVENT = 1;
 

@@ -72,6 +72,7 @@ int UART::read(char *buf, int size)
         buf[ret] = '\0';
         LOG_HEXDUMP_DBG(buf, (uint32_t)ret, "RCV:");
     }
+
     return ret;
 }
 
@@ -91,22 +92,22 @@ int UART::flush(char *buf, int size)
 
 bool UART::read_line(char *out, int size, k_timeout_t timeout)
 {
-    int pos = 0;
-    while (pos < size - 1) {
-        if (!wait_rcv_evt(timeout))
-            return false;
-        clear_rcv_evt();
-        int n = read(out + pos, size - pos - 1);
+    int cnt = 0;
+    char rcv;
+    while (cnt < size - 1) {
+        int n = read(&rcv, 1);
         if (n > 0) {
-            pos += n;
-            out[pos] = '\0';
-            char *nl = static_cast<char *>(memchr(out, '\n', pos));
-            if (nl) {
-                *nl = '\0';
-                if (nl > out && *(nl - 1) == '\r')
-                    *(nl - 1) = '\0';
+            ++cnt;
+            *out++ = rcv;
+            *out = '\0';
+            if (rcv == '\r' || rcv == '\n') {
                 return true;
             }
+        }
+        else {
+            if (!wait_rcv_evt(timeout))
+                return false;
+            clear_rcv_evt();
         }
     }
     return false;
