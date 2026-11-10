@@ -15,7 +15,6 @@
 
 #include "d_pipeline/cloud_sender.hpp"
 #include "storage/nv_storage.hpp"
-#include "utils/system_clock.hpp"
 
 #if CONFIG_CLOUD_SEND_4G
 #include "transport/modem_transport.hpp"
@@ -32,6 +31,19 @@
 
 LOG_MODULE_REGISTER(main);
 
+static void print_clock()
+{
+	struct timespec ts;
+	if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
+		struct tm *t = gmtime(&ts.tv_sec);
+		printk("Epoch: %lld\n", (long long)ts.tv_sec);
+		printk("Now: %04d-%02d-%02d %02d:%02d:%02d\n", t->tm_year + 1900, t->tm_mon + 1,
+		       t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+	} else {
+		printk("ERROR: clock_gettime() failed\n");
+	}
+}
+
 #define ADC_NODE DT_ALIAS(adc0)
 
 #define CHANNEL_VREF(node_id) DT_PROP_OR(node_id, zephyr_vref_mv, 0)
@@ -39,14 +51,13 @@ LOG_MODULE_REGISTER(main);
 static const struct device *adc = DEVICE_DT_GET(ADC_NODE);
 
 static const struct adc_channel_cfg channel_cfgs[] = {
-	DT_FOREACH_CHILD_SEP(ADC_NODE, ADC_CHANNEL_CFG_DT, (,))};
+	DT_FOREACH_CHILD_SEP(ADC_NODE, ADC_CHANNEL_CFG_DT, (, ))};
 
-static uint32_t vrefs_mv[] = {DT_FOREACH_CHILD_SEP(ADC_NODE, CHANNEL_VREF, (,))};
+static uint32_t vrefs_mv[] = {DT_FOREACH_CHILD_SEP(ADC_NODE, CHANNEL_VREF, (, ))};
 
 #define CHANNEL_COUNT ARRAY_SIZE(channel_cfgs)
 
 static constexpr float BAT_VOLTAGE_DIVIDER_RATIO = 5.6f;
-
 
 // for shell access, global cause shell is not an object
 extern void shell_nv_set(NvStorage &);
@@ -59,29 +70,28 @@ extern void shell_lora_sm_set(LoRaStateMachine &);
 
 int main(void)
 {
-	NvStorage nv_storage;
-	SDI12Bus sdi12_bus;
-	
+	static NvStorage nv_storage;
+	static SDI12Bus sdi12_bus;
 
+	static Topic<ruuvi_data> ruuvi_topic;
+	static Topic<teros12_data> teros_topic;
+	static Topic<solyx14_data> solyx_topic;
+	static Topic<solinst_data> solinst_topic;
 
-	Topic<ruuvi_data> ruuvi_topic;
-	Topic<teros12_data> teros_topic;
-	Topic<solyx14_data> solyx_topic;
-	Topic<solinst_data> solinst_topic;
-
-	RuuviScanner ruuvi_scanner(ruuvi_topic, nv_storage);
-	SDI12Scanner sdi12_scanner(sdi12_bus, ruuvi_scanner, teros_topic, solyx_topic, solinst_topic);
+	static RuuviScanner ruuvi_scanner(&ruuvi_topic, &nv_storage);
+	static SDI12Scanner sdi12_scanner(&sdi12_bus, &ruuvi_scanner, &teros_topic, &solyx_topic,
+					  &solinst_topic);
 
 #if CONFIG_CLOUD_SEND_LORA
-	LoRaStateMachine lora_sm;
-	LoRaTransport lora_transport(lora_sm);
-	BinarySerializer binary_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
-	CloudSender cloud_sender(lora_transport, binary_ser);
-	shell_lora_sm_set(lora_sm);	
+	static LoRaStateMachine lora_sm;
+	static LoRaTransport lora_transport(&lora_sm);
+	static BinarySerializer bin_ser(&ruuvi_topic, &teros_topic, &solyx_topic, &solinst_topic);
+	static CloudSender cloud_sender(&lora_transport, &bin_ser);
+	shell_lora_sm_set(lora_sm);
 #elif CONFIG_CLOUD_SEND_4G
-	ModemTransport modem_transport;
-	JsonSerializer json_ser(ruuvi_topic, teros_topic, solyx_topic, solinst_topic);
-	CloudSender cloud_sender(modem_transport, json_ser);
+	static ModemTransport modem_transport;
+	static JsonSerializer json_ser(&ruuvi_topic, &teros_topic, &solyx_topic, &solinst_topic);
+	static CloudSender cloud_sender(&modem_transport, &json_ser);
 #endif
 	shell_nv_set(nv_storage);
 	shell_sdi12_set(sdi12_bus);
@@ -94,12 +104,10 @@ int main(void)
 	uint16_t channel_reading[CONFIG_SEQUENCE_SAMPLES][CHANNEL_COUNT];
 #endif
 
-
 	nv_storage.init();
-	//check if lora appkey is set
+	// check if lora appkey is set
 	char lora_appkey[33];
-	if (nv_storage.get_appkey(lora_appkey) <= 0)
-	{
+	if (nv_storage.get_appkey(lora_appkey) <= 0) {
 		LOG_WRN("LoRa AppKey not set in NVS. Use lora set_appkey <key> command to set it.");
 	}
 
@@ -113,14 +121,15 @@ int main(void)
 			boot_rc = modem_transport.boot_setup();
 		}
 	}
-	//json_ser.init(ruuvi_topic, teros_topic, solyx_topic, solinst_topic); // to be removed??
+	// json_ser.init(ruuvi_topic, teros_topic, solyx_topic, solinst_topic); // to be removed??
 #endif
 
 #if 1
 	printk("Type \"stop\" to stop boot\n");
 
 	// note: setting clear to true clears all events
-	if(AppEvents::wait(AppEvents::BOOT_HALT | AppEvents::BOOT_CONTINUE, false, K_SECONDS(30)) == AppEvents::BOOT_HALT) {
+	if (AppEvents::wait(AppEvents::BOOT_HALT | AppEvents::BOOT_CONTINUE, false,
+			    K_SECONDS(30)) == AppEvents::BOOT_HALT) {
 		AppEvents::boot_wait();
 	}
 	printk("Continuing boot\n");
@@ -157,52 +166,51 @@ int main(void)
 		}
 	}
 
-
 	AppEvents::clock_wait();
 
-	SystemClock::print();
-	while (1)
-	{
+	print_clock();
+	while (1) {
 		struct timespec now_ts;
 		if (clock_gettime(CLOCK_REALTIME, &now_ts) == 0) {
 			struct tm *t = gmtime(&now_ts.tv_sec);
-			if(t->tm_min % AppEvents::MEASURE_CYCLE_MINUTES == 0) {
+			if (t->tm_min % AppEvents::MEASURE_CYCLE_MINUTES == 0) {
 				LOG_INF("Start sampling");
-				SystemClock::print();
+				print_clock();
 				AppEvents::take_sample_now();
 				rc = adc_read(adc, &sequence);
 				if (rc >= 0) {
-					for (size_t channel_index = 0U; channel_index < CHANNEL_COUNT; channel_index++) {
-						int32_t val_mv;	
+					for (size_t channel_index = 0U;
+					     channel_index < CHANNEL_COUNT; channel_index++) {
+						int32_t val_mv;
 
-						// just read the first sample even if we have more than one
+						// just read the first sample even if we have more
+						// than one
 
 						val_mv = channel_reading[0][channel_index];
 
-						rc = adc_raw_to_millivolts(vrefs_mv[channel_index],
-										channel_cfgs[channel_index].gain,
-										CONFIG_SEQUENCE_RESOLUTION, &val_mv);
+						rc = adc_raw_to_millivolts(
+							vrefs_mv[channel_index],
+							channel_cfgs[channel_index].gain,
+							CONFIG_SEQUENCE_RESOLUTION, &val_mv);
 						if ((rc < 0) || vrefs_mv[channel_index] == 0) {
 							LOG_ERR("value in mV not available");
 						} else {
-							int bv = (int)(val_mv * BAT_VOLTAGE_DIVIDER_RATIO);
+							int bv = (int)(val_mv *
+								       BAT_VOLTAGE_DIVIDER_RATIO);
 							cloud_sender.set_bat_voltage(bv);
 							LOG_INF("Battery voltage: %d", bv);
 						}
-
 					}
-				}
-				else {
+				} else {
 					LOG_ERR("Could not read ADC (%d)", rc);
 				}
 
-				k_msleep(AppEvents::MEASURE_CYCLE_MINUTES * 60000 - 5000); // go to sleep and wake up 5s before next deadline
-			}
-			else {
+				k_msleep(AppEvents::MEASURE_CYCLE_MINUTES * 60000 -
+					 5000); // go to sleep and wake up 5s before next deadline
+			} else {
 				k_msleep(100); // not there yet - sleep just a bit and check again
 			}
-		}
-		else {
+		} else {
 			k_msleep(60000);
 		}
 	}

@@ -97,7 +97,6 @@ src/
     nv_storage.cpp
   utils/
     shell.cpp
-    system_clock.cpp
 
 ```
 
