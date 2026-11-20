@@ -80,10 +80,10 @@ Every sensor requires:
 If the new sensor supports SDI-12 protocol, it should be integrated directly into **SDI12Scanner** (sensor_scan/sdi12_scan).
 1.	Define the data type by adding the measurement struct to data_types.hpp and create the corresponding topic in main.cpp. 
 2.	Pass the new topic to SDI12Scanner (update the SDI12Scanner class to accept the new sensor topic and to hold corresponding Publisher instance).
-3.	Inside **SDI12Scanner::scan_sensor()** add new sensor entry to **`std::array<known_sensor>`** defining: 
-   -sensor ID
-   -sensor type
-   -sn_reader function pointer for parsing the serial number from the command respond
+3.	Inside **`SDI12Scanner::scan_sensor()`** add new sensor entry to **`std::array<known_sensor>`** defining:
+   - sensor ID
+   - sensor type
+   - sn_reader function pointer for parsing the serial number from the command respond
 4.	Implement measurement reading by adding a dedicated **`read_<newSensor>()`** method inside SDI12Scanner to get measurement values and publish them via Publisher. 
 5.	Add a case in scanner’s state machine to invoke new read_<newSensor>() method during wakeup.
  
