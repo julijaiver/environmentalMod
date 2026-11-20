@@ -47,6 +47,8 @@ An IoT device for measuring **Soil and water parameters**: volumetric water cont
 
 ## Architecture
 
+Software architecture follows decoupled **Publish/Subscribe** strategy, where data flows through dedicated topics enabling sensors, serializers and transport methods to be added independently. 
+
 ```
 RuuviTag (BLE)    --> ruuvi_scanner   --> transmit queue
 Solyx14, Solinst (SDI-12) --> sdi12_scanner   --> transmit queue
@@ -55,7 +57,6 @@ transmit queue --> CloudSender --> [LoRaTransport | ModemTransport]
                                                   |
                                         Google Cloud Pub/Sub
 ```
-
 ### Key classes
 
 | Class / File              | Responsibility                                      |
@@ -70,6 +71,54 @@ transmit queue --> CloudSender --> [LoRaTransport | ModemTransport]
 | `Sdi12Bus`                | SDI-12 physical layer (UART + break signal)         |
 | `JwtBuilder`              | RS256 JWT via mbedTLS (4G OAuth2)                   |
 | `NvStorage`               | NVS flash — RuuviTag MACs, LoRa AppKey              |
+
+### Adding a new sensor:
+Every sensor requires:
+1.	A dedicated data struct in data_types.hpp
+2.	A corresponding **Topic<NewSensorStruct>** instantiated in main.cpp and passed to the sensor scanner and to serializer
+#### Case A: Sensor uses SDI-12 protocol: 
+If the new sensor supports SDI-12 protocol, it should be integrated directly into **SDI12Scanner** (sensor_scan/sdi12_scan)
+1.	Define the data type by adding the measurement struct to data_types.hpp and create the corresponding topic in main.cpp 
+2.	Pass the new topic to SDI12Scanner (update the SDI12Scanner class to accept the new sensor topic and to hold corresponding Publisher instance)
+3.	Inside **SDI12Scanner::scan_sensor()** add new sensor entry to **std::array<known_sensor>** defining: 
+		- sensor ID
+		- sensor type
+		- sn_reader function pointer for parsing the serial number from the command respond
+4.	Implement measurement reading by adding a dedicated **read_<newSensor>()** method inside SDI12Scanner to get measurement values and publish them via Publisher. 
+5.	Add a case in scanner’s state machine to invoke new read_<newSensor>() method during wakeup
+ 
+*(RuuviTag follows the same topic + publisher pattern inside the RuuviScanner class)* 
+#### Case B: Sensor uses different protocol (I2C, SPI, etc):
+1.	Define sensor’s data struct in data_types.hpp and instantiate its topic in main.cpp
+2.	Create a new sensor scanner class that takes the corresponding sensor topic and owns a Publisher instance. 
+3.	Implement protocol specific polling/reading logic and publish measurement values to the topic 
+4.	Instantiate the new scanner in main.cpp 
+
+### Adding a new transport method: 
+All transport methods must implement the **ITransport interface** (includes/interfaces/itransport.hpp).
+```cpp
+class NewTransport : public ITransport {
+public:
+        int connect() override;
+        int disconnect() override;
+        int send(const uint8_t *buf, int len) override;
+        int send_log(const uint8_t *buf, int len) override; 
+        int max_payload() override; 
+} 
+```
+1.	Add a build selection macro in main.cpp (#ifdef USE_NEW_TRANSPORT) to create new transport instance pointer
+2.	Pass the instance pointer into the CloudSender, which uses it through ITransport interface. 
+
+### Adding a new serialization method: 
+All serializers inherit common **DataSubscriber class** to pack pending sensor data in CloudSender ready to be sent with corresponding transport method.
+```cpp
+class NewSerializer : public DataSubscriber {
+        using DataSubscriber::DataSubscriber;
+        int pack(uint8_t *buf, int max_len) override; 
+}
+```
+1.	Inherit from DataSubscriber (includes/serialization/data_subscriber.hpp) which already inherits from **ISerializer** and implements its pending() method -> new serializer class only needs to reuse the DataSubscriber’s constructor and override pack() method. 
+2.	In main.cpp create your new serializer instance pointer by passing all active sensor topics into the inherited DataSubscriber constructor and then pass the new serializer instance pointer to the CloudSender.
 
 ---
 
